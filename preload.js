@@ -11,5 +11,8 @@ contextBridge.exposeInMainWorld('api', {
   resumeHotkeys: () => ipcRenderer.invoke('resume-hotkeys'),
   onChatMessage: (cb) => ipcRenderer.on('chat-message', (_e, msg) => cb(msg)),
   onPeerStatus: (cb) => ipcRenderer.on('peer-status', (_e, s) => cb(s)),
-  onHotkeyAction: (cb) => ipcRenderer.on('hotkey-action', (_e, a) => cb(a))
+  onHotkeyAction: (cb) => ipcRenderer.on('hotkey-action', (_e, a) => cb(a)),
+  startCaption: () => ipcRenderer.invoke('start-caption'),
+  stopCaption: () => ipcRenderer.invoke('stop-caption'),
+  onCaptionSegment: (cb) => ipcRenderer.on('caption-segment', (_e, seg) => cb(seg))
 });

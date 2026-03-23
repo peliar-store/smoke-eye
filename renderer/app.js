@@ -6,6 +6,8 @@ let role = null;
 let connected = false;
 let msgCounter = 0;
 let settings = { hotkeys: {}, webpages: [] };
+let captionRunning = false;
+let captionInterimEl = null;
 
 function showView(id) {
   $$('.view').forEach(v => v.classList.toggle('active', v.id === id));
@@ -77,6 +79,8 @@ $('#btn-interviewer').addEventListener('click', async () => {
   } catch (e) {
     $('#iv-status').textContent = 'Server error: ' + e;
   }
+  // Auto-start caption capture
+  startCaption();
 });
 
 $('#btn-support').addEventListener('click', () => {
@@ -98,6 +102,78 @@ $$('#iv-grid .panel-head').forEach(head => {
   head.addEventListener('click', () => {
     $('#iv-grid').dataset.focus = head.dataset.panel;
   });
+});
+
+// ---------- interviewer: caption ----------
+async function startCaption() {
+  if (captionRunning) return;
+  const res = await window.api.startCaption();
+  if (res.ok) {
+    captionRunning = true;
+    $('#caption-toggle').textContent = '\u25A0 Stop';
+    $('#caption-toggle').classList.add('active');
+  } else {
+    appendCaptionLine(captionErrorMsg(res.error, res.detail), 'error');
+  }
+}
+
+async function stopCaption() {
+  if (!captionRunning) return;
+  await window.api.stopCaption();
+  captionRunning = false;
+  $('#caption-toggle').textContent = '\u25B6 Start';
+  $('#caption-toggle').classList.remove('active');
+  if (captionInterimEl) { captionInterimEl.classList.remove('interim'); captionInterimEl = null; }
+}
+
+$('#caption-toggle').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!captionRunning) startCaption();
+  else stopCaption();
+});
+
+function appendCaptionLine(text, cls) {
+  const el = document.createElement('div');
+  el.className = 'caption-line' + (cls ? ' ' + cls : '');
+  el.textContent = text;
+  $('#caption-log').appendChild(el);
+  $('#caption-log').scrollTop = $('#caption-log').scrollHeight;
+  return el;
+}
+
+function captionErrorMsg(code, detail) {
+  const map = {
+    'no-audio-source': 'No audio loopback source found. On Windows: install VB-Audio Virtual Cable or ffmpeg with dshow. On Linux: ensure PulseAudio is running.',
+    'pipeline-init-failed': `Whisper model failed to load: ${detail || ''}. See CAPTION_SETUP.md for help.`,
+  };
+  return map[code] || `Caption error: ${code}`;
+}
+
+window.api.onCaptionSegment((seg) => {
+  if (seg.type === 'status') {
+    appendCaptionLine(seg.text, 'status');
+    return;
+  }
+  if (seg.type === 'error') {
+    captionRunning = false;
+    $('#caption-toggle').textContent = '\u25B6 Start';
+    $('#caption-toggle').classList.remove('active');
+    appendCaptionLine(seg.error, 'error');
+    return;
+  }
+  if (seg.type === 'interim') {
+    if (!captionInterimEl) {
+      captionInterimEl = appendCaptionLine(seg.text, 'interim');
+    } else {
+      captionInterimEl.textContent = seg.text;
+      $('#caption-log').scrollTop = $('#caption-log').scrollHeight;
+    }
+    return;
+  }
+  if (seg.type === 'stable') {
+    if (captionInterimEl) { captionInterimEl.classList.remove('interim'); captionInterimEl = null; }
+    appendCaptionLine(seg.text, '');
+  }
 });
 
 // ---------- interviewer: web viewer ----------
