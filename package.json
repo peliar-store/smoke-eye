@@ -1,0 +1,12 @@
+{
+  "name": "interview-support-app",
+  "version": "1.0.0",
+  "description": "Electron app for interviewer and support roles",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^29.0.0"
+  }
+}

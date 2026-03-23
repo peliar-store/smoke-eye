@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-src *;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview Support</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ========== Role Select ========== -->
+  <section id="view-role" class="view active">
+    <div class="role-box">
+      <h1>Select Your Role</h1>
+      <div class="role-buttons">
+        <button id="btn-interviewer" class="role-btn">Interviewer</button>
+        <button id="btn-support" class="role-btn">Support</button>
+      </div>
+      <button id="btn-settings" class="settings-btn">&#9881; Settings</button>
+    </div>
+  </section>
+
+  <!-- ========== Interviewer ========== -->
+  <section id="view-interviewer" class="view">
+    <header class="topbar">
+      <button class="back-btn" data-target="view-role">&larr; Back</button>
+      <span>Interviewer</span>
+      <span id="iv-status" class="status off">Listening on port 5000 &mdash; waiting…</span>
+      <span id="iv-badge" class="badge hidden">New message from Support</span>
+    </header>
+
+    <div id="iv-grid" class="iv-grid">
+      <div class="panel" data-panel="caption">
+        <div class="panel-head" data-panel="caption">Interview Caption</div>
+        <div class="panel-body caption-body"></div>
+      </div>
+
+      <div class="panel" data-panel="web">
+        <div class="panel-head" data-panel="web">Web Viewer</div>
+        <div class="panel-body web-body">
+          <div class="url-bar">
+            <select id="web-list"></select>
+            <input id="web-url" type="text" value="https://example.com" />
+            <button id="web-go">Go</button>
+          </div>
+          <webview id="webview" src="https://example.com"></webview>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="chat">
+        <div class="panel-head" data-panel="chat">Support Chat</div>
+        <div class="panel-body chat-body">
+          <div id="iv-chat-log" class="chat-log"></div>
+          <div class="chat-input-row">
+            <input id="iv-chat-input" type="text" placeholder="Type a message…" />
+            <button id="iv-chat-send">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== Support ========== -->
+  <section id="view-support" class="view">
+    <header class="topbar">
+      <button class="back-btn" data-target="view-role">&larr; Back</button>
+      <span>Support</span>
+      <span id="sp-status" class="status off">Disconnected</span>
+    </header>
+
+    <div class="support-layout">
+      <div class="conn-box">
+        <input id="sp-ip" type="text" placeholder="Interviewer IP" value="127.0.0.1" />
+        <input id="sp-port" type="number" placeholder="Port" value="5000" />
+        <button id="sp-connect">Connect</button>
+      </div>
+
+      <div class="format-bar">
+        <span>Format selection:</span>
+        <button id="fmt-bold" title="Toggle bold"><b>B</b></button>
+        <button id="fmt-hl" title="Toggle highlight"><mark>H</mark></button>
+        <button id="fmt-clear" title="Clear formatting">Clear</button>
+        <span class="spacer"></span>
+        <button id="chat-clear" title="Clear all chat history">Clear History</button>
+      </div>
+
+      <div id="sp-chat-log" class="chat-log editable"></div>
+
+      <div class="chat-input-row rich">
+        <div id="sp-chat-input" class="rich-input" contenteditable="true"
+             data-placeholder="Type a message…"></div>
+        <button id="sp-chat-send">Send</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== Settings ========== -->
+  <section id="view-settings" class="view">
+    <header class="topbar">
+      <button class="back-btn" data-target="view-role">&larr; Back</button>
+      <span>Settings</span>
+    </header>
+
+    <div class="settings-layout">
+      <!-- hotkeys pane -->
+      <div class="settings-pane">
+        <h2>Hotkeys</h2>
+        <p class="hint">Click a field and press the key combination.</p>
+        <div class="hotkey-list">
+          <label>Window size &rarr; Mobile
+            <input class="hk" data-hk="sizeMobile" readonly /></label>
+          <label>Window size &rarr; Tablet
+            <input class="hk" data-hk="sizeTablet" readonly /></label>
+          <label>Hide / Show window
+            <input class="hk" data-hk="toggleShow" readonly /></label>
+          <label>Move Up
+            <input class="hk" data-hk="moveUp" readonly /></label>
+          <label>Move Down
+            <input class="hk" data-hk="moveDown" readonly /></label>
+          <label>Move Left
+            <input class="hk" data-hk="moveLeft" readonly /></label>
+          <label>Move Right
+            <input class="hk" data-hk="moveRight" readonly /></label>
+          <label>Send Help Request
+            <input class="hk" data-hk="helpRequest" readonly /></label>
+          <label>Focus Caption Panel
+            <input class="hk" data-hk="focusCaption" readonly /></label>
+          <label>Focus Web Panel
+            <input class="hk" data-hk="focusWeb" readonly /></label>
+          <label>Focus Chat Panel
+            <input class="hk" data-hk="focusChat" readonly /></label>
+        </div>
+      </div>
+
+      <!-- webpage list pane -->
+      <div class="settings-pane">
+        <h2>Webpage List</h2>
+        <p class="hint">Quick-access URLs shown in the interviewer's web viewer.</p>
+        <ul id="wp-list" class="wp-list"></ul>
+        <div class="wp-add">
+          <input id="wp-input" type="text" placeholder="https://…" />
+          <button id="wp-add-btn">Add</button>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button id="settings-save">Save</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
