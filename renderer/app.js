@@ -6,6 +6,9 @@ let role = null;
 let connected = false;
 let msgCounter = 0;
 let settings = { hotkeys: {}, webpages: [] };
+let stickyNotes = [];       // { id, title, content }
+let uploadedFiles = [];     // [ path, ... ]
+let currentStickyIdx = 0;
 
 function showView(id) {
   $$('.view').forEach(v => v.classList.toggle('active', v.id === id));
@@ -66,20 +69,154 @@ function appendMsg(logEl, { id, from, html, text }, withDelete) {
   return div;
 }
 
-// ---------- role select ----------
-$('#btn-interviewer').addEventListener('click', async () => {
+// ========================================================
+// Role select — Tab switching
+// ========================================================
+$$('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.tab').forEach(t => t.classList.remove('active'));
+    $$('.tab-pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    const pane = document.getElementById(tab.dataset.tab);
+    if (pane) pane.classList.add('active');
+  });
+});
+
+// ========================================================
+// Role select — File uploads (single input + list)
+// ========================================================
+function renderFileList() {
+  const ul = $('#file-list');
+  ul.innerHTML = '';
+  uploadedFiles.forEach((p, i) => {
+    const li = document.createElement('li');
+    li.className = 'flex items-center gap-2 px-2 py-1.5 bg-zinc-800 rounded text-xs';
+    const name = document.createElement('span');
+    name.className = 'flex-1 truncate';
+    name.textContent = p.split(/[/\\]/).pop();
+    name.title = p;
+    const del = document.createElement('button');
+    del.className = 'w-5 h-5 bg-red-900 hover:bg-red-800 rounded text-white shrink-0';
+    del.textContent = '×';
+    del.addEventListener('click', () => {
+      uploadedFiles.splice(i, 1);
+      renderFileList();
+    });
+    li.appendChild(name);
+    li.appendChild(del);
+    ul.appendChild(li);
+  });
+}
+
+$('#file-add-btn').addEventListener('click', async () => {
+  const paths = await window.api.openFileDialog();
+  if (paths && paths.length) {
+    uploadedFiles.push(...paths);
+    renderFileList();
+  }
+});
+
+// ========================================================
+// Role select — Sticky notes management
+// ========================================================
+let stickyIdCounter = 0;
+
+function renderStickyList() {
+  const ul = $('#sticky-list');
+  ul.innerHTML = '';
+  stickyNotes.forEach((note, i) => {
+    const li = document.createElement('li');
+    li.className = 'flex items-start gap-2 px-2 py-1.5 bg-zinc-800 rounded border-l-2 border-amber-500 text-xs';
+    const info = document.createElement('div');
+    info.className = 'flex-1 overflow-hidden';
+    const strong = document.createElement('strong');
+    strong.className = 'block';
+    strong.textContent = note.title;
+    const span = document.createElement('span');
+    span.className = 'text-zinc-400 block truncate';
+    span.textContent = note.content;
+    info.appendChild(strong);
+    info.appendChild(span);
+    const del = document.createElement('button');
+    del.className = 'w-5 h-5 bg-red-900 hover:bg-red-800 rounded text-white shrink-0';
+    del.textContent = '×';
+    del.addEventListener('click', () => {
+      stickyNotes.splice(i, 1);
+      renderStickyList();
+    });
+    li.appendChild(info);
+    li.appendChild(del);
+    ul.appendChild(li);
+  });
+}
+
+$('#sticky-add-btn').addEventListener('click', () => {
+  const title = $('#sticky-title').value.trim();
+  const content = $('#sticky-content').value.trim();
+  if (!title && !content) return;
+  stickyNotes.push({ id: `sticky-${++stickyIdCounter}`, title: title || 'Note', content });
+  $('#sticky-title').value = '';
+  $('#sticky-content').value = '';
+  renderStickyList();
+});
+$('#sticky-title').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('#sticky-content').focus(); }
+});
+$('#sticky-content').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    $('#sticky-add-btn').click();
+  }
+});
+
+// ========================================================
+// Role select — Start buttons
+// ========================================================
+$('#btn-start-interviewer').addEventListener('click', async () => {
   role = 'interviewer';
+  const port = parseInt($('#role-port').value, 10) || 5000;
   showView('view-interviewer');
   $('#iv-grid').dataset.focus = 'caption';
   populateWebList();
   try {
-    await window.api.startServer(5000);
+    await window.api.startServer(port);
+    $('#iv-status .status-text').textContent = `Listening on ${port} — waiting…`;
   } catch (e) {
-    $('#iv-status').textContent = 'Server error: ' + e;
+    $('#iv-status .status-text').textContent = 'Server error: ' + e;
   }
 });
 
-$('#btn-support').addEventListener('click', () => {
+// Support tab — connect
+let spConnected = false;
+$('#btn-sp-connect').addEventListener('click', async () => {
+  if (!spConnected) {
+    const host = $('#role-sp-ip').value.trim();
+    const port = parseInt($('#role-sp-port').value, 10);
+    if (!host || !port) return;
+    try {
+      role = 'support';
+      await window.api.connect(host, port);
+      spConnected = true;
+      $('#btn-sp-connect').textContent = 'Disconnect';
+      $('#btn-sp-connect').classList.remove('bg-green-600', 'hover:bg-green-700');
+      $('#btn-sp-connect').classList.add('bg-red-600', 'hover:bg-red-700');
+      $('#role-sp-status').textContent = 'Connected';
+      $('#btn-start-support').disabled = false;
+    } catch (e) {
+      $('#role-sp-status').textContent = 'Error: ' + e;
+    }
+  } else {
+    await window.api.disconnect();
+    spConnected = false;
+    $('#btn-sp-connect').textContent = 'Connect';
+    $('#btn-sp-connect').classList.remove('bg-red-600', 'hover:bg-red-700');
+    $('#btn-sp-connect').classList.add('bg-green-600', 'hover:bg-green-700');
+    $('#role-sp-status').textContent = 'Disconnected';
+    $('#btn-start-support').disabled = true;
+  }
+});
+
+$('#btn-start-support').addEventListener('click', () => {
   role = 'support';
   showView('view-support');
 });
@@ -93,14 +230,28 @@ $$('.back-btn').forEach(b =>
   b.addEventListener('click', () => showView(b.dataset.target))
 );
 
-// ---------- interviewer: panel focus ----------
+// ========================================================
+// Interviewer: panel focus
+// ========================================================
 $$('#iv-grid .panel-head').forEach(head => {
   head.addEventListener('click', () => {
     $('#iv-grid').dataset.focus = head.dataset.panel;
   });
 });
 
-// ---------- interviewer: web viewer ----------
+// ========================================================
+// Interviewer: sticky button — cycle through notes in external window
+// ========================================================
+$('#iv-sticky-btn').addEventListener('click', () => {
+  if (stickyNotes.length === 0) return;
+  const note = stickyNotes[currentStickyIdx % stickyNotes.length];
+  currentStickyIdx++;
+  window.api.showSticky(note);
+});
+
+// ========================================================
+// Interviewer: web viewer
+// ========================================================
 function populateWebList() {
   const sel = $('#web-list');
   sel.innerHTML = '<option value="">-- pages --</option>';
@@ -125,7 +276,9 @@ $('#web-url').addEventListener('keydown', e => {
   if (e.key === 'Enter') $('#web-go').click();
 });
 
-// ---------- interviewer: chat ----------
+// ========================================================
+// Interviewer: chat
+// ========================================================
 function ivSend(text) {
   text = (text ?? $('#iv-chat-input').value).trim();
   if (!text) return;
@@ -140,23 +293,9 @@ $('#iv-chat-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') ivSend();
 });
 
-// ---------- support: connect ----------
-$('#sp-connect').addEventListener('click', async () => {
-  if (!connected) {
-    const host = $('#sp-ip').value.trim();
-    const port = parseInt($('#sp-port').value, 10);
-    if (!host || !port) return;
-    try {
-      await window.api.connect(host, port);
-    } catch (e) {
-      $('#sp-status').textContent = 'Error: ' + e;
-    }
-  } else {
-    await window.api.disconnect();
-  }
-});
-
-// ---------- support: chat (rich input) ----------
+// ========================================================
+// Support: chat (rich input)
+// ========================================================
 function spSend() {
   const input = $('#sp-chat-input');
   const html = sanitizeHtml(input.innerHTML).trim();
@@ -173,8 +312,9 @@ $('#sp-chat-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); spSend(); }
 });
 
-// ---------- support: formatting (toggle) ----------
-// Works on both the contenteditable input and existing messages in the log.
+// ========================================================
+// Support: formatting (toggle)
+// ========================================================
 function toggleWrap(tag) {
   const sel = window.getSelection();
   if (!sel.rangeCount || sel.isCollapsed) return;
@@ -187,7 +327,6 @@ function toggleWrap(tag) {
   const msgEl = container.closest('#sp-chat-log .msg');
   if (!inInput && !msgEl) return;
 
-  // detect if selection is already inside this tag -> unwrap
   let existing = container.closest(tag);
   const boundary = inInput || msgEl.querySelector('.msg-content');
   if (existing && !boundary.contains(existing)) existing = null;
@@ -237,7 +376,6 @@ function syncEdit(msgEl) {
   });
 }
 
-// preserve selection when clicking toolbar buttons
 ['#fmt-bold', '#fmt-hl', '#fmt-clear'].forEach(id =>
   $(id).addEventListener('mousedown', e => e.preventDefault())
 );
@@ -245,14 +383,71 @@ $('#fmt-bold').addEventListener('click', () => toggleWrap('b'));
 $('#fmt-hl').addEventListener('click', () => toggleWrap('mark'));
 $('#fmt-clear').addEventListener('click', clearFormat);
 
-// ---------- support: clear history ----------
+// ========================================================
+// Support: clear history
+// ========================================================
 $('#chat-clear').addEventListener('click', () => {
   if (!confirm('Clear all chat history?')) return;
   $('#sp-chat-log').innerHTML = '';
   window.api.sendMessage({ type: 'clear' });
 });
 
-// ---------- incoming ----------
+// ========================================================
+// Support: sticky notes list + modal
+// ========================================================
+let receivedStickies = [];
+let modalNote = null;
+
+function renderSupportStickies() {
+  const ul = $('#sp-sticky-list');
+  ul.innerHTML = '';
+  if (receivedStickies.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'sp-sticky-empty text-xs text-zinc-500 p-2';
+    li.textContent = 'No sticky notes yet';
+    ul.appendChild(li);
+    return;
+  }
+  receivedStickies.forEach(note => {
+    const li = document.createElement('li');
+    li.className = 'px-2 py-1.5 bg-zinc-950 rounded border-l-2 border-amber-500 cursor-pointer hover:bg-zinc-800 text-xs transition';
+    const strong = document.createElement('strong');
+    strong.className = 'block';
+    strong.textContent = note.title;
+    const span = document.createElement('span');
+    span.className = 'text-zinc-400 block truncate';
+    span.textContent = note.content;
+    li.appendChild(strong);
+    li.appendChild(span);
+    li.addEventListener('click', () => openStickyModal(note));
+    ul.appendChild(li);
+  });
+}
+
+function openStickyModal(note) {
+  modalNote = note;
+  $('#sp-modal-title').textContent = note.title;
+  $('#sp-modal-body').textContent = note.content;
+  $('#sp-sticky-modal').classList.remove('hidden');
+}
+
+function closeStickyModal() {
+  $('#sp-sticky-modal').classList.add('hidden');
+  modalNote = null;
+}
+
+$('#sp-modal-close').addEventListener('click', closeStickyModal);
+$('#sp-modal-close2').addEventListener('click', closeStickyModal);
+
+$('#sp-modal-show').addEventListener('click', () => {
+  if (!modalNote) return;
+  window.api.sendMessage({ type: 'show-sticky', note: modalNote });
+  closeStickyModal();
+});
+
+// ========================================================
+// Incoming messages
+// ========================================================
 window.api.onChatMessage((msg) => {
   const log = role === 'interviewer' ? $('#iv-chat-log') : $('#sp-chat-log');
   const withDel = role === 'support';
@@ -273,6 +468,15 @@ window.api.onChatMessage((msg) => {
     if (el) el.remove();
   } else if (msg.type === 'clear') {
     log.innerHTML = '';
+  } else if (msg.type === 'sticky-list') {
+    if (role === 'support') {
+      receivedStickies = msg.notes || [];
+      renderSupportStickies();
+    }
+  } else if (msg.type === 'show-sticky') {
+    if (role === 'interviewer') {
+      window.api.showSticky(msg.note);
+    }
   }
 });
 
@@ -280,26 +484,39 @@ window.api.onPeerStatus((s) => {
   connected = !!s.connected;
   if (role === 'interviewer') {
     const el = $('#iv-status');
-    el.textContent = connected ? 'Support connected' : 'Listening on port 5000 — waiting…';
-    el.className = 'status ' + (connected ? 'on' : 'off');
+    const port = $('#role-port').value || '5000';
+    $('#iv-status .status-text').textContent = connected
+      ? 'Support connected'
+      : `Listening on ${port} — waiting…`;
+    el.classList.toggle('on', connected);
+    el.classList.toggle('off', !connected);
+
+    if (connected && stickyNotes.length > 0) {
+      window.api.sendMessage({ type: 'sticky-list', notes: stickyNotes });
+    }
   } else if (role === 'support') {
     const el = $('#sp-status');
-    el.textContent = connected ? 'Connected' : 'Disconnected';
-    el.className = 'status ' + (connected ? 'on' : 'off');
-
-    const btn = $('#sp-connect');
-    btn.textContent = connected ? 'Disconnect' : 'Connect';
-    btn.classList.toggle('disconnect', connected);
-    $('#sp-ip').disabled = connected;
-    $('#sp-port').disabled = connected;
+    $('#sp-status .status-text').textContent = connected ? 'Connected' : 'Disconnected';
+    el.classList.toggle('on', connected);
+    el.classList.toggle('off', !connected);
   }
 });
 
-// ---------- hotkey: help request ----------
+// ========================================================
+// Hotkey actions
+// ========================================================
 window.api.onHotkeyAction((a) => {
   if (a.action === 'focusPanel') {
     if (role === 'interviewer') {
       $('#iv-grid').dataset.focus = a.panel;
+    }
+    return;
+  }
+  if (a.action === 'toggleSticky') {
+    // Sticky window doesn't exist yet — open with current/first note
+    if (role === 'interviewer' && stickyNotes.length > 0) {
+      const note = stickyNotes[currentStickyIdx % stickyNotes.length];
+      window.api.showSticky(note);
     }
     return;
   }
@@ -322,11 +539,9 @@ async function loadSettings() {
 }
 
 function renderSettings() {
-  // hotkeys
   $$('.hk').forEach(inp => {
     inp.value = settings.hotkeys[inp.dataset.hk] || '';
   });
-  // webpages
   renderWebpages();
 }
 
@@ -335,9 +550,12 @@ function renderWebpages() {
   ul.innerHTML = '';
   settings.webpages.forEach((url, i) => {
     const li = document.createElement('li');
+    li.className = 'flex items-center gap-2 px-2 py-1.5 bg-zinc-950 rounded text-xs';
     const span = document.createElement('span');
+    span.className = 'flex-1 truncate';
     span.textContent = url;
     const del = document.createElement('button');
+    del.className = 'w-5 h-5 bg-red-900 hover:bg-red-800 rounded text-white';
     del.textContent = '×';
     del.addEventListener('click', () => {
       settings.webpages.splice(i, 1);

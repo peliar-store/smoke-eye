@@ -9,7 +9,12 @@ contextBridge.exposeInMainWorld('api', {
   setSettings: (s) => ipcRenderer.invoke('set-settings', s),
   suspendHotkeys: () => ipcRenderer.invoke('suspend-hotkeys'),
   resumeHotkeys: () => ipcRenderer.invoke('resume-hotkeys'),
+  openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
+  showSticky: (note) => ipcRenderer.invoke('show-sticky', note),
+  hideSticky: () => ipcRenderer.invoke('hide-sticky'),
+  closeSticky: () => ipcRenderer.send('close-sticky'),
   onChatMessage: (cb) => ipcRenderer.on('chat-message', (_e, msg) => cb(msg)),
   onPeerStatus: (cb) => ipcRenderer.on('peer-status', (_e, s) => cb(s)),
-  onHotkeyAction: (cb) => ipcRenderer.on('hotkey-action', (_e, a) => cb(a))
+  onHotkeyAction: (cb) => ipcRenderer.on('hotkey-action', (_e, a) => cb(a)),
+  onStickyData: (cb) => ipcRenderer.on('sticky-data', (_e, d) => cb(d))
 });

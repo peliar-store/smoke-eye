@@ -3,59 +3,141 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-src *;">
+        content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-src *; connect-src *;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Interview Support</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body class="h-screen m-0 bg-zinc-900 text-zinc-200 font-sans overflow-hidden">
 
-  <!-- ========== Role Select ========== -->
-  <section id="view-role" class="view active">
-    <div class="role-box">
-      <h1>Select Your Role</h1>
-      <div class="role-buttons">
-        <button id="btn-interviewer" class="role-btn">Interviewer</button>
-        <button id="btn-support" class="role-btn">Support</button>
+  <!-- ========== Role Select (Tabbed) ========== -->
+  <section id="view-role" class="view active h-screen flex-col items-center justify-center overflow-y-auto p-4">
+    <div class="w-full max-w-xl">
+      <h1 class="text-center text-2xl font-light mb-6">Interview Support</h1>
+
+      <div class="flex border-b-2 border-zinc-700 mb-5">
+        <button class="tab active flex-1 py-3 px-4 text-zinc-400 border-b-2 border-transparent -mb-0.5 hover:text-zinc-200 transition" data-tab="tab-interviewer">Interviewer</button>
+        <button class="tab flex-1 py-3 px-4 text-zinc-400 border-b-2 border-transparent -mb-0.5 hover:text-zinc-200 transition" data-tab="tab-support">Support</button>
       </div>
-      <button id="btn-settings" class="settings-btn">&#9881; Settings</button>
+
+      <!-- Interviewer Tab -->
+      <div id="tab-interviewer" class="tab-pane active space-y-4">
+        <div>
+          <label class="block text-xs text-zinc-400 mb-1">Port</label>
+          <input id="role-port" type="number" value="5000" min="1" max="65535"
+                 class="w-full px-3 py-2 bg-zinc-950 border border-zinc-600 rounded-md text-sm" />
+        </div>
+
+        <div>
+          <label class="block text-xs text-zinc-400 mb-1">Interview Type</label>
+          <select id="role-interview-type"
+                  class="w-full px-3 py-2 bg-zinc-950 border border-zinc-600 rounded-md text-sm">
+            <option value="technical">Technical</option>
+            <option value="behavioral">Behavioral</option>
+            <option value="system-design">System Design</option>
+            <option value="general">General</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-zinc-400 mb-1">Upload Files (CV, Job Description, Support Material…)</label>
+          <button id="file-add-btn"
+                  class="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-md text-sm hover:bg-zinc-700 transition">
+            + Add File
+          </button>
+          <ul id="file-list" class="mt-2 space-y-1 max-h-36 overflow-y-auto"></ul>
+        </div>
+
+        <div>
+          <label class="block text-xs text-zinc-400 mb-1">Sticky Notes</label>
+          <input id="sticky-title" type="text" placeholder="Title"
+                 class="w-full px-3 py-2 mb-2 bg-zinc-950 border border-zinc-600 rounded-md text-sm" />
+          <textarea id="sticky-content" placeholder="Content" rows="3"
+                    class="w-full px-3 py-2 mb-2 bg-zinc-950 border border-zinc-600 rounded-md text-sm resize-y"></textarea>
+          <button id="sticky-add-btn"
+                  class="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm transition">Add Note</button>
+          <ul id="sticky-list" class="mt-2 space-y-1 max-h-44 overflow-y-auto"></ul>
+        </div>
+
+        <button id="btn-start-interviewer"
+                class="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-base font-medium transition">
+          Start Interviewer
+        </button>
+      </div>
+
+      <!-- Support Tab -->
+      <div id="tab-support" class="tab-pane space-y-4">
+        <div>
+          <label class="block text-xs text-zinc-400 mb-1">Interviewer IP</label>
+          <input id="role-sp-ip" type="text" value="127.0.0.1"
+                 class="w-full px-3 py-2 bg-zinc-950 border border-zinc-600 rounded-md text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-zinc-400 mb-1">Port</label>
+          <input id="role-sp-port" type="number" value="5000"
+                 class="w-full px-3 py-2 bg-zinc-950 border border-zinc-600 rounded-md text-sm" />
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-sp-connect"
+                  class="flex-1 py-2.5 bg-green-600 hover:bg-green-700 rounded-md text-sm font-medium transition">Connect</button>
+          <button id="btn-start-support" disabled
+                  class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">Start</button>
+        </div>
+        <div id="role-sp-status" class="text-xs text-zinc-500 text-center">Disconnected</div>
+      </div>
+
+      <button id="btn-settings"
+              class="block mx-auto mt-6 px-5 py-2 border border-zinc-600 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition">
+        &#9881; Settings
+      </button>
     </div>
   </section>
 
   <!-- ========== Interviewer ========== -->
-  <section id="view-interviewer" class="view">
-    <header class="topbar">
-      <button class="back-btn" data-target="view-role">&larr; Back</button>
-      <span>Interviewer</span>
-      <span id="iv-status" class="status off">Listening on port 5000 &mdash; waiting…</span>
-      <span id="iv-badge" class="badge hidden">New message from Support</span>
+  <section id="view-interviewer" class="view h-screen flex-col">
+    <header class="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700 shrink-0">
+      <button class="back-btn px-2 py-1 border border-zinc-600 rounded hover:bg-zinc-700 text-sm" data-target="view-role">&larr;</button>
+      <span class="font-semibold">Interviewer</span>
+      <button id="iv-sticky-btn" title="Show sticky notes"
+              class="px-2 py-1 border border-zinc-600 rounded hover:bg-zinc-700 text-sm">&#128204;</button>
+      <span id="iv-status" class="status off ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded" title="Connection status">
+        <span class="status-icon">&#128279;</span>
+        <span class="status-text hidden sm:inline">Listening &mdash; waiting&hellip;</span>
+      </span>
+      <span id="iv-badge" class="badge hidden flex items-center gap-1 text-xs px-2 py-1 rounded bg-amber-500 text-black font-semibold" title="New message from Support">
+        <span class="badge-icon">&#128172;</span>
+        <span class="badge-text hidden sm:inline">New message</span>
+      </span>
     </header>
 
-    <div id="iv-grid" class="iv-grid">
-      <div class="panel" data-panel="caption">
-        <div class="panel-head" data-panel="caption">Interview Caption</div>
-        <div class="panel-body caption-body"></div>
+    <div id="iv-grid" class="iv-grid flex-1 min-h-0 p-2 gap-2">
+      <div class="panel flex flex-col min-h-0 bg-zinc-800 border border-zinc-700 rounded-lg overflow-hidden" data-panel="caption">
+        <div class="panel-head px-3 py-2 bg-zinc-700 font-semibold cursor-pointer hover:bg-zinc-600 select-none" data-panel="caption">Interview Caption</div>
+        <div class="panel-body flex-1 min-h-0 p-4 text-zinc-500"></div>
       </div>
 
-      <div class="panel" data-panel="web">
-        <div class="panel-head" data-panel="web">Web Viewer</div>
-        <div class="panel-body web-body">
-          <div class="url-bar">
-            <select id="web-list"></select>
-            <input id="web-url" type="text" value="https://example.com" />
-            <button id="web-go">Go</button>
+      <div class="panel flex flex-col min-h-0 bg-zinc-800 border border-zinc-700 rounded-lg overflow-hidden" data-panel="web">
+        <div class="panel-head px-3 py-2 bg-zinc-700 font-semibold cursor-pointer hover:bg-zinc-600 select-none" data-panel="web">Web Viewer</div>
+        <div class="panel-body flex-1 min-h-0 flex flex-col">
+          <div class="flex gap-1 p-1.5 border-b border-zinc-700 flex-wrap">
+            <select id="web-list" class="flex-none w-36 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded text-xs"></select>
+            <input id="web-url" type="text" value="https://example.com"
+                   class="flex-1 min-w-[120px] px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded text-xs" />
+            <button id="web-go" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-xs">Go</button>
           </div>
-          <webview id="webview" src="https://example.com"></webview>
+          <webview id="webview" src="https://example.com" class="flex-1 w-full"></webview>
         </div>
       </div>
 
-      <div class="panel" data-panel="chat">
-        <div class="panel-head" data-panel="chat">Support Chat</div>
-        <div class="panel-body chat-body">
-          <div id="iv-chat-log" class="chat-log"></div>
-          <div class="chat-input-row">
-            <input id="iv-chat-input" type="text" placeholder="Type a message…" />
-            <button id="iv-chat-send">Send</button>
+      <div class="panel flex flex-col min-h-0 bg-zinc-800 border border-zinc-700 rounded-lg overflow-hidden" data-panel="chat">
+        <div class="panel-head px-3 py-2 bg-zinc-700 font-semibold cursor-pointer hover:bg-zinc-600 select-none" data-panel="chat">Support Chat</div>
+        <div class="panel-body flex-1 min-h-0 flex flex-col">
+          <div id="iv-chat-log" class="chat-log flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
+          <div class="flex gap-1.5 p-2 border-t border-zinc-700 shrink-0">
+            <input id="iv-chat-input" type="text" placeholder="Type a message…"
+                   class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-600 rounded text-sm" />
+            <button id="iv-chat-send" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">Send</button>
           </div>
         </div>
       </div>
@@ -63,90 +145,112 @@
   </section>
 
   <!-- ========== Support ========== -->
-  <section id="view-support" class="view">
-    <header class="topbar">
-      <button class="back-btn" data-target="view-role">&larr; Back</button>
-      <span>Support</span>
-      <span id="sp-status" class="status off">Disconnected</span>
+  <section id="view-support" class="view h-screen flex-col">
+    <header class="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700 shrink-0">
+      <button class="back-btn px-2 py-1 border border-zinc-600 rounded hover:bg-zinc-700 text-sm" data-target="view-role">&larr;</button>
+      <span class="font-semibold">Support</span>
+      <span id="sp-status" class="status off ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded">
+        <span class="status-icon">&#128279;</span>
+        <span class="status-text hidden sm:inline">Disconnected</span>
+      </span>
     </header>
 
-    <div class="support-layout">
-      <div class="conn-box">
-        <input id="sp-ip" type="text" placeholder="Interviewer IP" value="127.0.0.1" />
-        <input id="sp-port" type="number" placeholder="Port" value="5000" />
-        <button id="sp-connect">Connect</button>
+    <div class="flex-1 flex flex-col md:flex-row min-h-0 gap-2 p-2">
+      <div class="flex-1 flex flex-col min-h-0 max-w-full md:max-w-4xl">
+        <div class="flex items-center gap-2 text-xs text-zinc-400 flex-wrap px-2 pb-2">
+          <span>Format:</span>
+          <button id="fmt-bold" title="Toggle bold" class="w-8 h-8 border border-zinc-600 bg-zinc-800 rounded hover:bg-zinc-700"><b>B</b></button>
+          <button id="fmt-hl" title="Toggle highlight" class="w-8 h-8 border border-zinc-600 bg-zinc-800 rounded hover:bg-zinc-700"><mark class="px-0.5">H</mark></button>
+          <button id="fmt-clear" title="Clear formatting" class="px-2 h-8 border border-zinc-600 bg-zinc-800 rounded hover:bg-zinc-700">Clear</button>
+          <span class="flex-1"></span>
+          <button id="chat-clear" title="Clear all chat history" class="px-2 h-8 border border-red-900 bg-zinc-800 rounded hover:bg-red-900">Clear History</button>
+        </div>
+
+        <div id="sp-chat-log" class="chat-log editable flex-1 overflow-y-auto p-3 flex flex-col gap-2 border border-zinc-700 rounded-lg bg-zinc-800"></div>
+
+        <div class="flex gap-1.5 p-2 shrink-0">
+          <div id="sp-chat-input" contenteditable="true" data-placeholder="Type a message…"
+               class="rich-input flex-1 min-h-[2.4rem] max-h-32 overflow-y-auto px-3 py-2 bg-zinc-950 border border-zinc-600 rounded text-sm outline-none"></div>
+          <button id="sp-chat-send" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">Send</button>
+        </div>
       </div>
 
-      <div class="format-bar">
-        <span>Format selection:</span>
-        <button id="fmt-bold" title="Toggle bold"><b>B</b></button>
-        <button id="fmt-hl" title="Toggle highlight"><mark>H</mark></button>
-        <button id="fmt-clear" title="Clear formatting">Clear</button>
-        <span class="spacer"></span>
-        <button id="chat-clear" title="Clear all chat history">Clear History</button>
+      <div class="w-full md:w-56 shrink-0 bg-zinc-800 border border-zinc-700 rounded-lg flex flex-col overflow-hidden max-h-48 md:max-h-none">
+        <h3 class="m-0 px-3 py-2 text-sm font-semibold bg-zinc-700 border-b border-zinc-600">Sticky Notes</h3>
+        <ul id="sp-sticky-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+          <li class="sp-sticky-empty text-xs text-zinc-500 p-2">No sticky notes yet</li>
+        </ul>
       </div>
+    </div>
 
-      <div id="sp-chat-log" class="chat-log editable"></div>
-
-      <div class="chat-input-row rich">
-        <div id="sp-chat-input" class="rich-input" contenteditable="true"
-             data-placeholder="Type a message…"></div>
-        <button id="sp-chat-send">Send</button>
+    <!-- Sticky note detail modal -->
+    <div id="sp-sticky-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div class="bg-zinc-800 border border-zinc-700 rounded-xl w-full max-w-md shadow-2xl">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700 font-bold">
+          <span id="sp-modal-title"></span>
+          <button id="sp-modal-close" class="text-zinc-400 hover:text-zinc-200 text-xl leading-none">&times;</button>
+        </div>
+        <div id="sp-modal-body" class="p-4 text-sm leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto"></div>
+        <div class="px-4 py-3 border-t border-zinc-700 flex justify-end gap-2">
+          <button id="sp-modal-close2" class="px-4 py-2 border border-zinc-600 rounded hover:bg-zinc-700 text-sm">Close</button>
+          <button id="sp-modal-show" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded text-sm">Show to Interviewer</button>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- ========== Settings ========== -->
-  <section id="view-settings" class="view">
-    <header class="topbar">
-      <button class="back-btn" data-target="view-role">&larr; Back</button>
-      <span>Settings</span>
+  <section id="view-settings" class="view h-screen flex-col">
+    <header class="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700 shrink-0">
+      <button class="back-btn px-2 py-1 border border-zinc-600 rounded hover:bg-zinc-700 text-sm" data-target="view-role">&larr; Back</button>
+      <span class="font-semibold">Settings</span>
     </header>
 
-    <div class="settings-layout">
-      <!-- hotkeys pane -->
-      <div class="settings-pane">
-        <h2>Hotkeys</h2>
-        <p class="hint">Click a field and press the key combination.</p>
-        <div class="hotkey-list">
-          <label>Window size &rarr; Mobile
-            <input class="hk" data-hk="sizeMobile" readonly /></label>
-          <label>Window size &rarr; Tablet
-            <input class="hk" data-hk="sizeTablet" readonly /></label>
-          <label>Hide / Show window
-            <input class="hk" data-hk="toggleShow" readonly /></label>
-          <label>Move Up
-            <input class="hk" data-hk="moveUp" readonly /></label>
-          <label>Move Down
-            <input class="hk" data-hk="moveDown" readonly /></label>
-          <label>Move Left
-            <input class="hk" data-hk="moveLeft" readonly /></label>
-          <label>Move Right
-            <input class="hk" data-hk="moveRight" readonly /></label>
-          <label>Send Help Request
-            <input class="hk" data-hk="helpRequest" readonly /></label>
-          <label>Focus Caption Panel
-            <input class="hk" data-hk="focusCaption" readonly /></label>
-          <label>Focus Web Panel
-            <input class="hk" data-hk="focusWeb" readonly /></label>
-          <label>Focus Chat Panel
-            <input class="hk" data-hk="focusChat" readonly /></label>
+    <div class="flex-1 overflow-y-auto p-4 md:p-6 grid gap-6 grid-cols-1 lg:grid-cols-2 content-start">
+      <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-1">Hotkeys</h2>
+        <p class="text-xs text-zinc-500 mb-4">Click a field and press the key combination.</p>
+        <div class="space-y-2">
+          <label class="flex items-center justify-between gap-3 text-sm">Window → Mobile
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="sizeMobile" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Window → Tablet
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="sizeTablet" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Hide / Show window
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="toggleShow" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Move Up
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="moveUp" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Move Down
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="moveDown" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Move Left
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="moveLeft" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Move Right
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="moveRight" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Help Request
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="helpRequest" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Focus Caption
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="focusCaption" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Focus Web
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="focusWeb" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Focus Chat
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="focusChat" readonly /></label>
+          <label class="flex items-center justify-between gap-3 text-sm">Toggle Sticky Note
+            <input class="hk w-44 px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded font-mono text-xs text-center cursor-pointer" data-hk="toggleSticky" readonly /></label>
         </div>
       </div>
 
-      <!-- webpage list pane -->
-      <div class="settings-pane">
-        <h2>Webpage List</h2>
-        <p class="hint">Quick-access URLs shown in the interviewer's web viewer.</p>
-        <ul id="wp-list" class="wp-list"></ul>
-        <div class="wp-add">
-          <input id="wp-input" type="text" placeholder="https://…" />
-          <button id="wp-add-btn">Add</button>
+      <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-1">Webpage List</h2>
+        <p class="text-xs text-zinc-500 mb-4">Quick-access URLs for the web viewer.</p>
+        <ul id="wp-list" class="space-y-1.5 max-h-60 overflow-y-auto mb-3"></ul>
+        <div class="flex gap-2">
+          <input id="wp-input" type="text" placeholder="https://…"
+                 class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-600 rounded text-sm" />
+          <button id="wp-add-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">Add</button>
         </div>
       </div>
 
-      <div class="settings-actions">
-        <button id="settings-save">Save</button>
+      <div class="lg:col-span-2 flex justify-end">
+        <button id="settings-save" class="px-8 py-2.5 bg-green-600 hover:bg-green-700 rounded text-base">Save</button>
       </div>
     </div>
   </section>
