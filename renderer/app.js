@@ -214,6 +214,8 @@ $('#btn-sp-connect').addEventListener('click', async () => {
     $('#role-sp-status').textContent = 'Disconnected';
     $('#btn-start-support').disabled = true;
   }
+  // Auto-start caption capture
+  startCaption();
 });
 
 $('#btn-start-support').addEventListener('click', () => {
