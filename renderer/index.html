@@ -12,7 +12,11 @@
 <body class="h-screen m-0 bg-zinc-900 text-zinc-200 font-sans overflow-hidden">
 
   <!-- ========== Role Select (Tabbed) ========== -->
-  <section id="view-role" class="view active h-screen flex-col items-center justify-center overflow-y-auto p-4">
+  <section id="view-role" class="view active h-screen flex-col items-center justify-center overflow-y-auto p-4 relative">
+    <button id="btn-settings" title="Settings"
+            class="absolute top-3 right-3 w-9 h-9 flex items-center justify-center border border-zinc-600 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition text-lg">
+      &#9881;
+    </button>
     <div class="w-full max-w-xl">
       <h1 class="text-center text-2xl font-light mb-6">Interview Support</h1>
 
@@ -22,7 +26,7 @@
       </div>
 
       <!-- Interviewer Tab -->
-      <div id="tab-interviewer" class="tab-pane active space-y-4">
+      <div id="tab-interviewer" class="tab-pane active space-y-4 overflow-y-auto" style="max-height:calc(100vh - 12rem)">
         <div>
           <label class="block text-xs text-zinc-400 mb-1">Port</label>
           <input id="role-port" type="number" value="5000" min="1" max="65535"
@@ -96,10 +100,6 @@
         <div id="role-sp-status" class="text-xs text-zinc-500 text-center">Disconnected</div>
       </div>
 
-      <button id="btn-settings"
-              class="block mx-auto mt-6 px-5 py-2 border border-zinc-600 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition">
-        &#9881; Settings
-      </button>
     </div>
   </section>
 

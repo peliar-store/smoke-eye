@@ -863,7 +863,7 @@ $('#wp-input').addEventListener('keydown', e => {
 $('#settings-save').addEventListener('click', async () => {
   settings = await window.api.setSettings(settings);
   populateWebList();
-  alert('Settings saved');
+  showView('view-role');
 });
 
 // ---------- init ----------

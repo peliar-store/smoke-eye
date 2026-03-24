@@ -420,16 +420,22 @@ let captureOverlay = null;
 ipcMain.handle('capture-area', async () => {
   if (captureOverlay && !captureOverlay.isDestroyed()) return { ok: false, error: 'already-capturing' };
 
-  const display = screen.getPrimaryDisplay();
+  // Use the display that contains the main window
+  const winBounds = mainWindow ? mainWindow.getBounds() : null;
+  const display = winBounds ? screen.getDisplayMatching(winBounds) : screen.getPrimaryDisplay();
   const { width, height } = display.size;
   const scale = display.scaleFactor || 1;
 
+  // Capture screenshot silently before opening overlay
   const sources = await desktopCapturer.getSources({
     types: ['screen'],
     thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) }
   });
-  if (!sources.length) return { ok: false, error: 'no-source' };
-  const screenshot = sources[0].thumbnail;
+  // Match source to the correct display
+  const displayId = String(display.id);
+  const src = sources.find(s => s.display_id === displayId) || sources[0];
+  if (!src) return { ok: false, error: 'no-source' };
+  const screenshot = src.thumbnail;
 
   return new Promise((resolve) => {
     captureOverlay = new BrowserWindow({
@@ -443,9 +449,7 @@ ipcMain.handle('capture-area', async () => {
     });
     captureOverlay.loadFile('renderer/capture.html');
     captureOverlay.once('ready-to-show', () => {
-      captureOverlay.webContents.send('capture-init', {
-        dataURL: screenshot.toDataURL(), width, height, scale
-      });
+      captureOverlay.webContents.send('capture-init', { width, height, scale });
     });
 
     ipcMain.once('capture-done', (_e, rect) => {
