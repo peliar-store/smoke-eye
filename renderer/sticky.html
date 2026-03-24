@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+  <title>Sticky Note</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    .drag { -webkit-app-region: drag; }
+    .no-drag { -webkit-app-region: no-drag; }
+  </style>
+</head>
+<body class="bg-amber-100 text-zinc-900 flex flex-col h-full select-none">
+  <div class="drag flex items-center justify-between px-3 py-2 bg-amber-200 border-b border-amber-400 cursor-move">
+    <span id="title" class="font-bold text-sm truncate">Sticky Note</span>
+    <button id="close" class="no-drag w-6 h-6 rounded hover:bg-amber-300 text-amber-800 text-lg leading-none">&times;</button>
+  </div>
+  <div id="body" class="flex-1 p-3 text-sm leading-relaxed overflow-y-auto whitespace-pre-wrap select-text"></div>
+
+  <script>
+    window.api.onStickyData((note) => {
+      document.getElementById('title').textContent = note.title || 'Sticky Note';
+      document.getElementById('body').textContent = note.content || '';
+    });
+    document.getElementById('close').addEventListener('click', () => {
+      window.api.closeSticky();
+    });
+  </script>
+</body>
+</html>

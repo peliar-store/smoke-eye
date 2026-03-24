@@ -1,10 +1,11 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const net = require('net');
 const { execSync, spawn } = require('child_process');
 
 let mainWindow;
+let stickyWindow = null;
 let tcpServer = null;
 let tcpClient = null;
 
@@ -27,17 +28,18 @@ const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
 const defaultSettings = {
   hotkeys: {
-    sizeMobile:  'CommandOrControl+Alt+1',
-    sizeTablet:  'CommandOrControl+Alt+2',
-    toggleShow:  'CommandOrControl+Alt+H',
-    moveUp:      'CommandOrControl+Alt+Up',
-    moveDown:    'CommandOrControl+Alt+Down',
-    moveLeft:    'CommandOrControl+Alt+Left',
-    moveRight:   'CommandOrControl+Alt+Right',
-    helpRequest: 'CommandOrControl+Alt+/',
+    sizeMobile:   'CommandOrControl+Alt+1',
+    sizeTablet:   'CommandOrControl+Alt+2',
+    toggleShow:   'CommandOrControl+Alt+H',
+    moveUp:       'CommandOrControl+Alt+Up',
+    moveDown:     'CommandOrControl+Alt+Down',
+    moveLeft:     'CommandOrControl+Alt+Left',
+    moveRight:    'CommandOrControl+Alt+Right',
+    helpRequest:  'CommandOrControl+Alt+/',
     focusCaption: 'CommandOrControl+Alt+4',
     focusWeb:     'CommandOrControl+Alt+5',
-    focusChat:    'CommandOrControl+Alt+6'
+    focusChat:    'CommandOrControl+Alt+6',
+    toggleSticky: 'CommandOrControl+Alt+S'
   },
   webpages: [
     'https://example.com',
@@ -78,6 +80,60 @@ function createWindow() {
   });
 
   mainWindow.loadFile('renderer/index.html');
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.close();
+  });
+}
+
+// ---------- Sticky note window ----------
+function createStickyWindow() {
+  if (stickyWindow && !stickyWindow.isDestroyed()) return stickyWindow;
+
+  stickyWindow = new BrowserWindow({
+    width: 320,
+    height: 260,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: true,
+    skipTaskbar: true,
+    minimizable: false,
+    maximizable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  stickyWindow.loadFile('renderer/sticky.html');
+
+  stickyWindow.on('closed', () => { stickyWindow = null; });
+  return stickyWindow;
+}
+
+function showSticky(note) {
+  const win = createStickyWindow();
+  const send = () => win.webContents.send('sticky-data', note);
+  if (win.webContents.isLoading()) {
+    win.webContents.once('did-finish-load', send);
+  } else {
+    send();
+  }
+  win.show();
+  win.focus();
+}
+
+function toggleStickyVisibility() {
+  if (!stickyWindow || stickyWindow.isDestroyed()) {
+    // Ask renderer for current notes so we can open with something useful
+    if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'toggleSticky' });
+    return;
+  }
+  if (stickyWindow.isVisible()) stickyWindow.hide();
+  else { stickyWindow.show(); stickyWindow.focus(); }
 }
 
 // ---------- hotkey actions ----------
@@ -114,17 +170,18 @@ function focusPanel(panel) {
 }
 
 const hotkeyActions = {
-  sizeMobile:  () => setSize('mobile'),
-  sizeTablet:  () => setSize('tablet'),
-  toggleShow:  toggleVisibility,
-  moveUp:      () => moveWindow(0, -MOVE_STEP),
-  moveDown:    () => moveWindow(0,  MOVE_STEP),
-  moveLeft:    () => moveWindow(-MOVE_STEP, 0),
+  sizeMobile:   () => setSize('mobile'),
+  sizeTablet:   () => setSize('tablet'),
+  toggleShow:   toggleVisibility,
+  moveUp:       () => moveWindow(0, -MOVE_STEP),
+  moveDown:     () => moveWindow(0,  MOVE_STEP),
+  moveLeft:     () => moveWindow(-MOVE_STEP, 0),
   moveRight:    () => moveWindow( MOVE_STEP, 0),
   helpRequest:  sendHelpRequest,
   focusCaption: () => focusPanel('caption'),
   focusWeb:     () => focusPanel('web'),
-  focusChat:    () => focusPanel('chat')
+  focusChat:    () => focusPanel('chat'),
+  toggleSticky: toggleStickyVisibility
 };
 
 function registerHotkeys() {
@@ -291,6 +348,34 @@ ipcMain.handle('set-settings', (_e, next) => {
   saveSettings();
   registerHotkeys();
   return settings;
+});
+
+// ---------- File dialog ----------
+ipcMain.handle('open-file-dialog', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: 'Documents', extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'md'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths;
+});
+
+// ---------- Sticky window IPC ----------
+ipcMain.handle('show-sticky', (_e, note) => {
+  showSticky(note);
+  return { ok: true };
+});
+
+ipcMain.handle('hide-sticky', () => {
+  if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
+  return { ok: true };
+});
+
+ipcMain.on('close-sticky', () => {
+  if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
 });
 
 // ---------- Interviewer: start TCP server ----------
