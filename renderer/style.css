@@ -13,23 +13,26 @@
 .badge.hidden { opacity: 0; pointer-events: none; }
 .badge { transition: opacity .3s; }
 
-/* ---------- interviewer grid (desktop) ---------- */
+/* ---------- interviewer panels (flex-column, keep order) ---------- */
 .iv-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
 }
-.iv-grid[data-focus="caption"] .panel[data-panel="caption"] { grid-column: 1; grid-row: 1 / span 2; }
-.iv-grid[data-focus="caption"] .panel[data-panel="web"]     { grid-column: 2; grid-row: 1; }
-.iv-grid[data-focus="caption"] .panel[data-panel="chat"]    { grid-column: 2; grid-row: 2; }
+.iv-grid .panel { flex: 0 0 auto; }
+.iv-grid .panel .panel-body { display: none; }
 
-.iv-grid[data-focus="web"] .panel[data-panel="web"]     { grid-column: 1; grid-row: 1 / span 2; }
-.iv-grid[data-focus="web"] .panel[data-panel="caption"] { grid-column: 2; grid-row: 1; }
-.iv-grid[data-focus="web"] .panel[data-panel="chat"]    { grid-column: 2; grid-row: 2; }
-
-.iv-grid[data-focus="chat"] .panel[data-panel="chat"]    { grid-column: 1; grid-row: 1 / span 2; }
-.iv-grid[data-focus="chat"] .panel[data-panel="caption"] { grid-column: 2; grid-row: 1; }
-.iv-grid[data-focus="chat"] .panel[data-panel="web"]     { grid-column: 2; grid-row: 2; }
+/* Focused panel expands to fill remaining space */
+.iv-grid[data-focus="caption"] .panel[data-panel="caption"],
+.iv-grid[data-focus="web"]     .panel[data-panel="web"],
+.iv-grid[data-focus="chat"]    .panel[data-panel="chat"] {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.iv-grid[data-focus="caption"] .panel[data-panel="caption"] .panel-body,
+.iv-grid[data-focus="web"]     .panel[data-panel="web"]     .panel-body,
+.iv-grid[data-focus="chat"]    .panel[data-panel="chat"]    .panel-body {
+  display: flex;
+}
 
 /* ---------- chat messages ---------- */
 .msg {
@@ -61,27 +64,10 @@
 /* ---------- modal hidden ---------- */
 #sp-sticky-modal.hidden { display: none; }
 
-/* ---------- responsive: mobile interviewer grid ---------- */
-@media (max-width: 640px) {
-  .iv-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto auto;
-  }
-  .iv-grid[data-focus] .panel { grid-column: 1 !important; }
-
-  .iv-grid[data-focus="caption"] .panel[data-panel="caption"] { grid-row: 1 !important; }
-  .iv-grid[data-focus="caption"] .panel[data-panel="web"]     { grid-row: 2 !important; }
-  .iv-grid[data-focus="caption"] .panel[data-panel="chat"]    { grid-row: 3 !important; }
-  .iv-grid[data-focus="web"] .panel[data-panel="web"]     { grid-row: 1 !important; }
-  .iv-grid[data-focus="web"] .panel[data-panel="caption"] { grid-row: 2 !important; }
-  .iv-grid[data-focus="web"] .panel[data-panel="chat"]    { grid-row: 3 !important; }
-  .iv-grid[data-focus="chat"] .panel[data-panel="chat"]    { grid-row: 1 !important; }
-  .iv-grid[data-focus="chat"] .panel[data-panel="caption"] { grid-row: 2 !important; }
-  .iv-grid[data-focus="chat"] .panel[data-panel="web"]     { grid-row: 3 !important; }
-
-  /* hide panel-body for non-focused panels — show title only */
-  .iv-grid .panel .panel-body { display: none; }
-  .iv-grid[data-focus="caption"] .panel[data-panel="caption"] .panel-body,
-  .iv-grid[data-focus="web"]     .panel[data-panel="web"]     .panel-body,
-  .iv-grid[data-focus="chat"]    .panel[data-panel="chat"]    .panel-body { display: flex; }
-}
+/* ---------- scrollbars (all) ---------- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #52525b; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #71717a; }
+::-webkit-scrollbar-corner { background: transparent; }
+* { scrollbar-width: thin; scrollbar-color: #52525b transparent; }

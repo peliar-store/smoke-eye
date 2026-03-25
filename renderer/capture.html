@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+  <title>Capture</title>
+  <style>
+    html, body {
+      height: 100%; margin: 0; overflow: hidden;
+      cursor: crosshair; user-select: none;
+      background: transparent;
+    }
+    #canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+    }
+    #hint {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.75); color: #fff; padding: 5px 12px;
+      border-radius: 6px; font: 12px/1.4 sans-serif; pointer-events: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="hint">Drag to select area &middot; Esc to cancel</div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let start = null;
+    let current = null;
+    let W = window.innerWidth, H = window.innerHeight;
+
+    canvas.width = W; canvas.height = H;
+
+    window.api.onCaptureInit((d) => {
+      W = d.width; H = d.height;
+      canvas.width = W; canvas.height = H;
+      draw();
+    });
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      if (!start || !current) return;
+      const x = Math.min(start.x, current.x);
+      const y = Math.min(start.y, current.y);
+      const w = Math.abs(start.x - current.x);
+      const h = Math.abs(start.y - current.y);
+      // Dark overlay outside selection
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(0, 0, W, y);
+      ctx.fillRect(0, y + h, W, H - y - h);
+      ctx.fillRect(0, y, x, h);
+      ctx.fillRect(x + w, y, W - x - w, h);
+      // Selection border
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      // Size label
+      if (w > 40 && h > 20) {
+        ctx.fillStyle = '#3b82f6';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(`${w} × ${h}`, x + 4, y + h - 4);
+      }
+    }
+
+    document.addEventListener('mousedown', (e) => {
+      start = { x: e.clientX, y: e.clientY };
+      current = { ...start };
+      document.getElementById('hint').style.display = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!start) return;
+      current = { x: e.clientX, y: e.clientY };
+      draw();
+    });
+
+    document.addEventListener('mouseup', (e) => {
+      if (!start) return;
+      const r = {
+        x: Math.min(start.x, e.clientX),
+        y: Math.min(start.y, e.clientY),
+        w: Math.abs(start.x - e.clientX),
+        h: Math.abs(start.y - e.clientY)
+      };
+      start = null; current = null;
+      if (r.w < 3 || r.h < 3) { window.api.captureDone(null); return; }
+      window.api.captureDone(r);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') window.api.captureDone(null);
+    });
+  </script>
+</body>
+</html>
