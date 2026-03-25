@@ -1,4 +1,4 @@
-import { Badge, Box, IconButton, Snackbar } from '@mui/material';
+import { Badge, Box, IconButton, Snackbar, useMediaQuery } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
@@ -12,8 +12,34 @@ import ChatPanel from './ChatPanel';
 import { useApp } from '../../context/AppContext';
 import { sanitizeHtml } from '../../utils/sanitize';
 
+const PANELS = [
+  { id: 'caption', title: 'Interview Caption', Body: CaptionPanel },
+  { id: 'web',     title: 'Web Viewer',        Body: WebPanel },
+  { id: 'chat',    title: 'Support Chat',      Body: ChatPanel }
+];
+
 export default function Interviewer() {
   const { setView, connected, focus, setFocus, toast, setToast, badge, showStickyAt, doCapture, currentStickyIdx } = useApp();
+  const isTablet = useMediaQuery('(min-width:900px)');
+
+  // Grid areas: active panel = 'm', others = 'a'/'b' in original order
+  let sideIdx = 0;
+  const areaMap = {};
+  PANELS.forEach(p => {
+    areaMap[p.id] = p.id === focus ? 'm' : (sideIdx++ === 0 ? 'a' : 'b');
+  });
+
+  const gridSx = isTablet
+    ? {
+        gridTemplateColumns: '1fr 280px',
+        gridTemplateRows: '1fr 1fr',
+        gridTemplateAreas: '"m a" "m b"'
+      }
+    : {
+        gridTemplateColumns: '1fr',
+        gridTemplateRows: PANELS.map(p => p.id === focus ? '1fr' : 'auto').join(' '),
+        gridTemplateAreas: PANELS.map(p => `"${areaMap[p.id]}"`).join(' ')
+      };
 
   return (
     <>
@@ -25,20 +51,22 @@ export default function Interviewer() {
         <IconButton size="small" onClick={doCapture} title="Capture screen area">
           <ContentCutIcon fontSize="small" />
         </IconButton>
-        <StatusChip connected={connected} onText="Support connected" offText="Listening…" />
+        <StatusChip connected={connected} onText="" offText="" />
         {badge && <Badge color="secondary" variant="dot"><ChatIcon fontSize="small" /></Badge>}
       </TitleBar>
 
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 1, p: 1 }}>
-        <Panel title="Interview Caption" id="caption" focus={focus} onFocus={setFocus}>
-          <CaptionPanel />
-        </Panel>
-        <Panel title="Web Viewer" id="web" focus={focus} onFocus={setFocus}>
-          <WebPanel />
-        </Panel>
-        <Panel title="Support Chat" id="chat" focus={focus} onFocus={setFocus}>
-          <ChatPanel />
-        </Panel>
+      <Box sx={{ flex: 1, minHeight: 0, display: 'grid', gap: 1, p: 1, ...gridSx }}>
+        {PANELS.map(p => {
+          const isMain = p.id === focus;
+          const mode = isMain ? 'main' : isTablet ? 'side' : 'collapsed';
+          return (
+            <Box key={p.id} sx={{ gridArea: areaMap[p.id], minHeight: 0, display: 'flex' }}>
+              <Panel title={p.title} mode={mode} onSelect={() => setFocus(p.id)}>
+                <p.Body />
+              </Panel>
+            </Box>
+          );
+        })}
       </Box>
 
       <Snackbar

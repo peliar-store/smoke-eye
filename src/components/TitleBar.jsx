@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react';
-import { Box, IconButton, Typography } from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
+import { Box, IconButton, Slider, Tooltip, Typography } from '@mui/material';
 import MinimizeIcon from '@mui/icons-material/Minimize';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import FilterNoneIcon from '@mui/icons-material/FilterNone';
 import CloseIcon from '@mui/icons-material/Close';
+import OpacityIcon from '@mui/icons-material/Opacity';
+import ShieldIcon from '@mui/icons-material/Shield';
+import OpacitySlider from './OpacitySlider';
 
 const drag = { WebkitAppRegion: 'drag' };
 const noDrag = { WebkitAppRegion: 'no-drag' };
 
 export default function TitleBar({ title = 'Interview Support', children }) {
   const [maximized, setMaximized] = useState(false);
+  const [opacity, setOpacity] = useState(1);
+  const trackRef = useRef(null);
 
   useEffect(() => {
     window.api.winIsMaximized().then(setMaximized);
@@ -39,6 +44,16 @@ export default function TitleBar({ title = 'Interview Support', children }) {
       </Box>
 
       <Box sx={{ flex: 1 }} />
+
+      <Box sx={{ ...noDrag, display: 'flex', alignItems: 'center' }}>
+        <OpacitySlider />
+      </Box>
+
+      <Tooltip title="Shield">
+        <IconButton size="small" sx={{ ...noDrag, mr: 0.5 }}>
+          <ShieldIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
 
       <Box sx={{ ...noDrag, display: 'flex' }}>
         <WinBtn onClick={() => window.api.winCtrl('minimize')}>

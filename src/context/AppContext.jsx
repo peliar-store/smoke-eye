@@ -17,7 +17,6 @@ export function AppProvider({ children }) {
   const [focus, setFocus] = useState('caption');
   const [toast, setToast] = useState(null);
   const [badge, setBadge] = useState(false);
-  const [captionLines, setCaptionLines] = useState([]);
 
   // support state
   const [receivedStickies, setReceivedStickies] = useState([]);
@@ -124,13 +123,6 @@ export function AppProvider({ children }) {
       else if (a.action === 'captureArea' && r === 'interviewer') doCapture();
       else if (a.action === 'helpRequest') sendMsg('🆘 Help request', '<b>🆘 Help request</b>');
     });
-
-    window.api.onCaptionSegment((seg) => {
-      if (seg.type === 'status') setCaptionLines([seg.text]);
-      else if (seg.type === 'error') setCaptionLines(l => [...l, `Error: ${seg.error}`]);
-      else if (seg.type === 'stable') setCaptionLines(l => [...l.slice(-20), seg.text]);
-      else if (seg.type === 'interim') setCaptionLines(l => [...l.slice(0, -1).slice(-20), seg.text]);
-    });
   }, [showStickyAt, doCapture, sendMsg]);
 
   // Sync to support on connect
@@ -156,7 +148,6 @@ export function AppProvider({ children }) {
     toast, setToast, badge,
     receivedStickies, setReceivedStickies, receivedFiles,
     shownStickyId, setShownStickyId,
-    captionLines,
     sendMsg, sendRaw, showStickyAt, doCapture,
     currentStickyIdx
   };

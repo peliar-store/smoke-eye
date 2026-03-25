@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('api', {
   // Window controls
   winCtrl: (cmd) => ipcRenderer.send('win-ctrl', cmd),
   winIsMaximized: () => ipcRenderer.invoke('win-is-maximized'),
+  winOpacity: (v) => ipcRenderer.send('win-opacity', v),
   onWinState: (cb) => ipcRenderer.on('win-state', (_e, s) => cb(s)),
 
   // Connection
@@ -27,10 +28,6 @@ contextBridge.exposeInMainWorld('api', {
   captureArea: () => ipcRenderer.invoke('capture-area'),
   captureDone: (rect) => ipcRenderer.send('capture-done', rect),
 
-  // Caption
-  startCaption: () => ipcRenderer.invoke('start-caption'),
-  stopCaption: () => ipcRenderer.invoke('stop-caption'),
-
   // Sticky
   showSticky: (note) => ipcRenderer.invoke('show-sticky', note),
   hideSticky: () => ipcRenderer.invoke('hide-sticky'),
@@ -42,6 +39,5 @@ contextBridge.exposeInMainWorld('api', {
   onPeerStatus: (cb) => ipcRenderer.on('peer-status', (_e, s) => cb(s)),
   onHotkeyAction: (cb) => ipcRenderer.on('hotkey-action', (_e, a) => cb(a)),
   onStickyData: (cb) => ipcRenderer.on('sticky-data', (_e, d) => cb(d)),
-  onCaptureInit: (cb) => ipcRenderer.on('capture-init', (_e, d) => cb(d)),
-  onCaptionSegment: (cb) => ipcRenderer.on('caption-segment', (_e, d) => cb(d))
+  onCaptureInit: (cb) => ipcRenderer.on('capture-init', (_e, d) => cb(d))
 });

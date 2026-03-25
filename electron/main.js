@@ -2,7 +2,6 @@ const { app, BrowserWindow, ipcMain, globalShortcut, screen, dialog, desktopCapt
 const path = require('path');
 const fs = require('fs');
 const net = require('net');
-const { execSync, spawn } = require('child_process');
 
 const isDev = !!process.env.VITE_DEV;
 const DEV_URL = 'http://localhost:5173';
@@ -12,15 +11,6 @@ let mainWindow;
 let stickyWindow = null;
 let tcpServer = null;
 let tcpClient = null;
-
-// ---------- caption state ----------
-let captionProc = null;
-let captionActive = false;
-let audioRingBuffer = Buffer.alloc(0);
-let captionPipeline = null;
-const SAMPLE_RATE = 16000;
-const CHUNK_BYTES = SAMPLE_RATE * 2 * 4;
-const STRIDE_BYTES = SAMPLE_RATE * 2 * 1;
 
 const MOVE_STEP = 40;
 const SIZES = { mobile: { w: 420, h: 780 }, tablet: { w: 900, h: 700 } };
@@ -108,6 +98,10 @@ ipcMain.on('win-ctrl', (_e, cmd) => {
 });
 
 ipcMain.handle('win-is-maximized', () => mainWindow?.isMaximized() ?? false);
+
+ipcMain.on('win-opacity', (_e, value) => {
+  if (mainWindow) mainWindow.setOpacity(value);
+});
 
 // ---------- Sticky note window ----------
 function createStickyWindow() {
@@ -207,110 +201,11 @@ function registerHotkeys() {
   }
 }
 
-// ---------- caption helpers ----------
-const isWin = process.platform === 'win32';
-
-function findAudioSource() {
-  if (isWin) return 'wasapi-loopback';
-  try {
-    const sink = execSync('pactl get-default-sink', { encoding: 'utf8' }).trim();
-    if (sink) return `${sink}.monitor`;
-  } catch {}
-  try {
-    const list = execSync('pactl list short sources', { encoding: 'utf8' });
-    const line = list.split('\n').find(l => l.includes('.monitor'));
-    if (line) return line.split('\t')[1];
-  } catch {}
-  return null;
-}
-
-function spawnAudioCapture(source) {
-  if (isWin) {
-    return spawn('ffmpeg', [
-      '-f', 'dshow', '-i', 'audio=virtual-audio-capturer',
-      '-ar', String(SAMPLE_RATE), '-ac', '1',
-      '-f', 's16le', '-acodec', 'pcm_s16le', 'pipe:1'
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
-  }
-  return spawn('parec', [
-    '--device', source, '--rate', String(SAMPLE_RATE),
-    '--channels', '1', '--format', 's16le', '--raw'
-  ]);
-}
-
-function pcmToFloat32(buf) {
-  const out = new Float32Array(buf.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = buf.readInt16LE(i * 2) / 32768.0;
-  return out;
-}
-
-async function ensurePipeline() {
-  if (captionPipeline) return captionPipeline;
-  const { pipeline } = await import('@xenova/transformers');
-  const modelPath = path.join(app.getPath('userData'), 'models', 'whisper-base');
-  let modelId = 'openai/whisper-base';
-  if (fs.existsSync(path.join(modelPath, 'config.json'))) modelId = modelPath;
-  captionPipeline = await pipeline('automatic-speech-recognition', modelId);
-  return captionPipeline;
-}
-
-let captionProcessing = false;
-
-ipcMain.handle('start-caption', async () => {
-  if (captionActive) return { ok: true };
-  const src = findAudioSource();
-  if (!src) return { ok: false, error: 'no-audio-source' };
-
-  let asr;
-  try {
-    mainWindow.webContents.send('caption-segment', { type: 'status', text: 'Loading Whisper model...' });
-    asr = await ensurePipeline();
-  } catch (e) { return { ok: false, error: 'pipeline-init-failed', detail: e.message }; }
-
-  captionActive = true;
-  captionProcessing = false;
-  audioRingBuffer = Buffer.alloc(0);
-  captionProc = spawnAudioCapture(src);
-
-  captionProc.stdout.on('data', async (chunk) => {
-    if (!captionActive) return;
-    audioRingBuffer = Buffer.concat([audioRingBuffer, chunk]);
-    if (audioRingBuffer.length < CHUNK_BYTES || captionProcessing) return;
-    captionProcessing = true;
-    const toProcess = audioRingBuffer.slice(0, CHUNK_BYTES);
-    audioRingBuffer = audioRingBuffer.slice(CHUNK_BYTES - STRIDE_BYTES);
-    try {
-      const result = await asr(pcmToFloat32(toProcess), { sampling_rate: SAMPLE_RATE });
-      const text = (result.text || '').trim();
-      if (!text || !mainWindow || mainWindow.isDestroyed()) { captionProcessing = false; return; }
-      const stable = text.length >= 80 || /[.?!]$/.test(text);
-      mainWindow.webContents.send('caption-segment', { type: stable ? 'stable' : 'interim', text });
-    } catch (e) { console.error('caption inference error', e); }
-    captionProcessing = false;
-  });
-
-  captionProc.on('error', (err) => {
-    captionActive = false;
-    if (mainWindow && !mainWindow.isDestroyed())
-      mainWindow.webContents.send('caption-segment', { type: 'error', error: err.message });
-  });
-
-  return { ok: true };
-});
-
-ipcMain.handle('stop-caption', () => {
-  captionActive = false;
-  if (captionProc) { captionProc.kill(); captionProc = null; }
-  audioRingBuffer = Buffer.alloc(0);
-  return { ok: true };
-});
-
 app.whenReady().then(() => { createWindow(); registerHotkeys(); });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => {
   if (tcpServer) tcpServer.close();
   if (tcpClient) tcpClient.destroy();
-  if (captionProc) { captionProc.kill(); captionProc = null; }
   if (process.platform !== 'darwin') app.quit();
 });
 app.on('activate', () => {

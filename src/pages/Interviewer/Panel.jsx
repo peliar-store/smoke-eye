@@ -1,32 +1,44 @@
-import { Box, Collapse, Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 
-export default function Panel({ title, id, focus, onFocus, children }) {
-  const active = focus === id;
+/**
+ * mode: 'main' | 'side' | 'collapsed'
+ */
+export default function Panel({ title, mode, onSelect, children }) {
+  const isMain = mode === 'main';
+  const showBody = mode !== 'collapsed';
 
   return (
     <Paper
       variant="outlined"
+      onClick={!isMain ? onSelect : undefined}
       sx={{
+        flex: 1,
         display: 'flex', flexDirection: 'column',
-        flex: active ? 1 : '0 0 auto',
-        minHeight: 0, overflow: 'hidden',
-        transition: 'flex .2s'
+        minHeight: 0, minWidth: 0, overflow: 'hidden',
+        cursor: isMain ? 'default' : 'pointer',
+        ...(!isMain && { '&:hover': { borderColor: 'primary.main' } })
       }}
     >
       <Box
-        onClick={() => onFocus(id)}
         sx={{
           px: 1.5, py: 1,
-          bgcolor: active ? 'primary.dark' : 'action.hover',
-          cursor: 'pointer', userSelect: 'none',
-          '&:hover': { bgcolor: active ? 'primary.dark' : 'action.selected' }
+          bgcolor: isMain ? 'primary.dark' : 'action.hover',
+          userSelect: 'none', flexShrink: 0
         }}
       >
-        <Typography variant="subtitle2" fontWeight={600}>{title}</Typography>
+        <Typography variant="subtitle2" fontWeight={600} noWrap>{title}</Typography>
       </Box>
-      <Collapse in={active} sx={{ flex: 1, minHeight: 0, '& .MuiCollapse-wrapper': { height: '100%' }, '& .MuiCollapse-wrapperInner': { height: '100%', display: 'flex', flexDirection: 'column' } }}>
+
+      <Box
+        sx={{
+          flex: 1, minHeight: 0,
+          display: showBody ? 'flex' : 'none',
+          flexDirection: 'column',
+          pointerEvents: mode === 'side' ? 'none' : 'auto'
+        }}
+      >
         {children}
-      </Collapse>
+      </Box>
     </Paper>
   );
 }

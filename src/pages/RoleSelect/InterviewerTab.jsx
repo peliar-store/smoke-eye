@@ -22,7 +22,6 @@ export default function InterviewerTab() {
     setView('interviewer');
     try {
       await window.api.startServer(port);
-      window.api.startCaption();
     } catch (e) {
       setStatus('Server error: ' + e);
     }
