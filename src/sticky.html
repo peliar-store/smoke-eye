@@ -3,27 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+        content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
   <title>Sticky Note</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html, body { height: 100%; margin: 0; overflow: hidden; }
+    html, body { height: 100%; margin: 0; overflow: hidden; font-family: system-ui, sans-serif; }
+    body { background: #fef3c7; color: #18181b; display: flex; flex-direction: column; user-select: none; }
     .drag { -webkit-app-region: drag; }
     .no-drag { -webkit-app-region: no-drag; }
-  </style>
-</head>
-<body class="bg-amber-100 text-zinc-900 flex flex-col h-full select-none">
-  <div class="drag flex items-center gap-1 px-2 py-2 bg-amber-200 border-b border-amber-400 cursor-move">
-    <button id="prev" title="Previous" class="no-drag w-6 h-6 rounded hover:bg-amber-300 text-amber-800 text-sm leading-none">&#9664;</button>
-    <button id="next" title="Next" class="no-drag w-6 h-6 rounded hover:bg-amber-300 text-amber-800 text-sm leading-none">&#9654;</button>
-    <span id="title" class="flex-1 font-bold text-sm truncate px-1">Sticky Note</span>
-    <button id="close" class="no-drag w-6 h-6 rounded hover:bg-amber-300 text-amber-800 text-lg leading-none">&times;</button>
-  </div>
-  <div id="body" class="flex-1 p-3 text-sm leading-relaxed overflow-y-auto whitespace-pre-wrap select-text"></div>
-  <style>
+    header {
+      display: flex; align-items: center; gap: 4px; padding: 8px;
+      background: #fde68a; border-bottom: 1px solid #fbbf24; cursor: move;
+    }
+    button {
+      width: 24px; height: 24px; border: none; border-radius: 4px;
+      background: transparent; color: #92400e; cursor: pointer; font-size: 13px;
+    }
+    button:hover { background: #fcd34d; }
+    #title { flex: 1; font-weight: 700; font-size: 13px; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #close { font-size: 18px; line-height: 1; }
+    #body { flex: 1; padding: 12px; font-size: 13px; line-height: 1.5; overflow-y: auto; white-space: pre-wrap; user-select: text; }
     #body mark { background: #fbbf24; padding: 0 2px; border-radius: 2px; }
     #body b, #body strong { font-weight: 700; }
   </style>
+</head>
+<body>
+  <header class="drag">
+    <button id="prev" class="no-drag" title="Previous">&#9664;</button>
+    <button id="next" class="no-drag" title="Next">&#9654;</button>
+    <span id="title">Sticky Note</span>
+    <button id="close" class="no-drag">&times;</button>
+  </header>
+  <div id="body"></div>
 
   <script>
     const allowed = new Set(['B', 'STRONG', 'MARK', 'BR']);

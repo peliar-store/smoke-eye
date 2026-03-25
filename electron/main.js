@@ -1,8 +1,12 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, dialog, desktopCapturer, clipboard, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, dialog, desktopCapturer, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const net = require('net');
 const { execSync, spawn } = require('child_process');
+
+const isDev = !!process.env.VITE_DEV;
+const DEV_URL = 'http://localhost:5173';
+const DIST = path.join(__dirname, '..', 'dist');
 
 let mainWindow;
 let stickyWindow = null;
@@ -15,14 +19,11 @@ let captionActive = false;
 let audioRingBuffer = Buffer.alloc(0);
 let captionPipeline = null;
 const SAMPLE_RATE = 16000;
-const CHUNK_BYTES = SAMPLE_RATE * 2 * 4;   // 4 seconds of 16-bit mono PCM
-const STRIDE_BYTES = SAMPLE_RATE * 2 * 1;  // 1-second overlap to avoid word boundary cuts
+const CHUNK_BYTES = SAMPLE_RATE * 2 * 4;
+const STRIDE_BYTES = SAMPLE_RATE * 2 * 1;
 
 const MOVE_STEP = 40;
-const SIZES = {
-  mobile: { w: 420, h: 780 },
-  tablet: { w: 900, h: 700 }
-};
+const SIZES = { mobile: { w: 420, h: 780 }, tablet: { w: 900, h: 700 } };
 
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
@@ -44,10 +45,7 @@ const defaultSettings = {
     stickyNext:   'CommandOrControl+Alt+]',
     captureArea:  'CommandOrControl+Alt+C'
   },
-  webpages: [
-    'https://example.com',
-    'https://developer.mozilla.org'
-  ]
+  webpages: ['https://example.com', 'https://developer.mozilla.org']
 };
 
 let settings = loadSettings();
@@ -70,10 +68,19 @@ function saveSettings() {
   catch (e) { console.error('save settings failed', e); }
 }
 
+function loadRenderer(win, page) {
+  if (isDev) win.loadURL(`${DEV_URL}/${page}`);
+  else win.loadFile(path.join(DIST, page));
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 380,
+    minHeight: 500,
+    frame: false,
+    backgroundColor: '#121212',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -82,37 +89,39 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile('renderer/index.html');
+  loadRenderer(mainWindow, 'index.html');
 
+  mainWindow.on('maximize', () => mainWindow.webContents.send('win-state', { maximized: true }));
+  mainWindow.on('unmaximize', () => mainWindow.webContents.send('win-state', { maximized: false }));
   mainWindow.on('closed', () => {
     mainWindow = null;
     if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.close();
   });
 }
 
+// ---------- window controls IPC ----------
+ipcMain.on('win-ctrl', (_e, cmd) => {
+  if (!mainWindow) return;
+  if (cmd === 'minimize') mainWindow.minimize();
+  else if (cmd === 'maximize') mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  else if (cmd === 'close') mainWindow.close();
+});
+
+ipcMain.handle('win-is-maximized', () => mainWindow?.isMaximized() ?? false);
+
 // ---------- Sticky note window ----------
 function createStickyWindow() {
   if (stickyWindow && !stickyWindow.isDestroyed()) return stickyWindow;
-
   stickyWindow = new BrowserWindow({
-    width: 320,
-    height: 260,
-    frame: false,
-    alwaysOnTop: true,
-    resizable: true,
-    skipTaskbar: true,
-    minimizable: false,
-    maximizable: false,
-    show: false,
+    width: 320, height: 260,
+    frame: false, alwaysOnTop: true, resizable: true,
+    skipTaskbar: true, minimizable: false, maximizable: false, show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false
+      contextIsolation: true, nodeIntegration: false
     }
   });
-
-  stickyWindow.loadFile('renderer/sticky.html');
-
+  loadRenderer(stickyWindow, 'sticky.html');
   stickyWindow.on('closed', () => { stickyWindow = null; });
   return stickyWindow;
 }
@@ -120,18 +129,13 @@ function createStickyWindow() {
 function showSticky(note) {
   const win = createStickyWindow();
   const send = () => win.webContents.send('sticky-data', note);
-  if (win.webContents.isLoading()) {
-    win.webContents.once('did-finish-load', send);
-  } else {
-    send();
-  }
-  win.show();
-  win.focus();
+  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
+  else send();
+  win.show(); win.focus();
 }
 
 function toggleStickyVisibility() {
   if (!stickyWindow || stickyWindow.isDestroyed()) {
-    // Ask renderer for current notes so we can open with something useful
     if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'toggleSticky' });
     return;
   }
@@ -165,13 +169,13 @@ function moveWindow(dx, dy) {
 }
 
 function sendHelpRequest() {
-  if (!mainWindow) return;
-  mainWindow.webContents.send('hotkey-action', { action: 'helpRequest' });
+  if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'helpRequest' });
 }
-
 function focusPanel(panel) {
-  if (!mainWindow) return;
-  mainWindow.webContents.send('hotkey-action', { action: 'focusPanel', panel });
+  if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'focusPanel', panel });
+}
+function navSticky(dir) {
+  if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'navSticky', dir });
 }
 
 const hotkeyActions = {
@@ -192,11 +196,6 @@ const hotkeyActions = {
   captureArea:  () => mainWindow && mainWindow.webContents.send('hotkey-action', { action: 'captureArea' })
 };
 
-function navSticky(dir) {
-  if (!mainWindow) return;
-  mainWindow.webContents.send('hotkey-action', { action: 'navSticky', dir });
-}
-
 function registerHotkeys() {
   globalShortcut.unregisterAll();
   for (const [key, accel] of Object.entries(settings.hotkeys)) {
@@ -212,12 +211,7 @@ function registerHotkeys() {
 const isWin = process.platform === 'win32';
 
 function findAudioSource() {
-  if (isWin) {
-    // On Windows, ffmpeg's dshow "virtual-audio-capturer" or WASAPI loopback is used.
-    // We don't need to discover a device name — ffmpeg uses the default loopback.
-    return 'wasapi-loopback';
-  }
-  // Linux: find PulseAudio monitor source
+  if (isWin) return 'wasapi-loopback';
   try {
     const sink = execSync('pactl get-default-sink', { encoding: 'utf8' }).trim();
     if (sink) return `${sink}.monitor`;
@@ -232,32 +226,21 @@ function findAudioSource() {
 
 function spawnAudioCapture(source) {
   if (isWin) {
-    // Windows: use ffmpeg with WASAPI loopback (captures system audio output)
-    // Requires ffmpeg to be installed and in PATH
     return spawn('ffmpeg', [
-      '-f', 'dshow',
-      '-i', 'audio=virtual-audio-capturer',
-      '-ar', String(SAMPLE_RATE),
-      '-ac', '1',
-      '-f', 's16le',
-      '-acodec', 'pcm_s16le',
-      'pipe:1'
+      '-f', 'dshow', '-i', 'audio=virtual-audio-capturer',
+      '-ar', String(SAMPLE_RATE), '-ac', '1',
+      '-f', 's16le', '-acodec', 'pcm_s16le', 'pipe:1'
     ], { stdio: ['ignore', 'pipe', 'ignore'] });
   }
-  // Linux: use parec directly
   return spawn('parec', [
-    '--device', source,
-    '--rate', String(SAMPLE_RATE),
-    '--channels', '1',
-    '--format', 's16le',
-    '--raw'
+    '--device', source, '--rate', String(SAMPLE_RATE),
+    '--channels', '1', '--format', 's16le', '--raw'
   ]);
 }
 
 function pcmToFloat32(buf) {
   const out = new Float32Array(buf.length / 2);
-  for (let i = 0; i < out.length; i++)
-    out[i] = buf.readInt16LE(i * 2) / 32768.0;
+  for (let i = 0; i < out.length; i++) out[i] = buf.readInt16LE(i * 2) / 32768.0;
   return out;
 }
 
@@ -266,20 +249,15 @@ async function ensurePipeline() {
   const { pipeline } = await import('@xenova/transformers');
   const modelPath = path.join(app.getPath('userData'), 'models', 'whisper-base');
   let modelId = 'openai/whisper-base';
-  // Use local model if it exists
-  if (fs.existsSync(path.join(modelPath, 'config.json'))) {
-    modelId = modelPath;
-  }
+  if (fs.existsSync(path.join(modelPath, 'config.json'))) modelId = modelPath;
   captionPipeline = await pipeline('automatic-speech-recognition', modelId);
   return captionPipeline;
 }
 
-let captionProcessing = false; // guard against overlapping inference
+let captionProcessing = false;
 
-// ---------- caption IPC ----------
 ipcMain.handle('start-caption', async () => {
   if (captionActive) return { ok: true };
-
   const src = findAudioSource();
   if (!src) return { ok: false, error: 'no-audio-source' };
 
@@ -292,18 +270,15 @@ ipcMain.handle('start-caption', async () => {
   captionActive = true;
   captionProcessing = false;
   audioRingBuffer = Buffer.alloc(0);
-
   captionProc = spawnAudioCapture(src);
 
   captionProc.stdout.on('data', async (chunk) => {
     if (!captionActive) return;
     audioRingBuffer = Buffer.concat([audioRingBuffer, chunk]);
     if (audioRingBuffer.length < CHUNK_BYTES || captionProcessing) return;
-
     captionProcessing = true;
     const toProcess = audioRingBuffer.slice(0, CHUNK_BYTES);
     audioRingBuffer = audioRingBuffer.slice(CHUNK_BYTES - STRIDE_BYTES);
-
     try {
       const result = await asr(pcmToFloat32(toProcess), { sampling_rate: SAMPLE_RATE });
       const text = (result.text || '').trim();
@@ -330,31 +305,22 @@ ipcMain.handle('stop-caption', () => {
   return { ok: true };
 });
 
-app.whenReady().then(() => {
-  createWindow();
-  registerHotkeys();
-});
-
+app.whenReady().then(() => { createWindow(); registerHotkeys(); });
 app.on('will-quit', () => globalShortcut.unregisterAll());
-
 app.on('window-all-closed', () => {
   if (tcpServer) tcpServer.close();
   if (tcpClient) tcpClient.destroy();
   if (captionProc) { captionProc.kill(); captionProc = null; }
   if (process.platform !== 'darwin') app.quit();
 });
-
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-// ---------- hotkey suspend/resume for settings ----------
+// ---------- settings IPC ----------
 ipcMain.handle('suspend-hotkeys', () => { globalShortcut.unregisterAll(); });
 ipcMain.handle('resume-hotkeys', () => { registerHotkeys(); });
-
-// ---------- settings IPC ----------
 ipcMain.handle('get-settings', () => settings);
-
 ipcMain.handle('set-settings', (_e, next) => {
   if (next.hotkeys) settings.hotkeys = { ...settings.hotkeys, ...next.hotkeys };
   if (Array.isArray(next.webpages)) settings.webpages = next.webpages;
@@ -363,7 +329,7 @@ ipcMain.handle('set-settings', (_e, next) => {
   return settings;
 });
 
-// ---------- File dialog ----------
+// ---------- File IPC ----------
 ipcMain.handle('open-file-dialog', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile', 'multiSelections'],
@@ -376,31 +342,11 @@ ipcMain.handle('open-file-dialog', async () => {
   return result.filePaths;
 });
 
-// ---------- Sticky window IPC ----------
-ipcMain.handle('show-sticky', (_e, note) => {
-  showSticky(note);
-  return { ok: true };
-});
-
-ipcMain.handle('hide-sticky', () => {
-  if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
-  return { ok: true };
-});
-
-ipcMain.on('close-sticky', () => {
-  if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
-});
-
-ipcMain.on('sticky-nav', (_e, dir) => navSticky(dir));
-
-// ---------- File transfer IPC ----------
 ipcMain.handle('read-file', (_e, filePath) => {
   try {
     const data = fs.readFileSync(filePath);
     return { ok: true, name: path.basename(filePath), data: data.toString('base64') };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
+  } catch (e) { return { ok: false, error: e.message }; }
 });
 
 ipcMain.handle('save-file', async (_e, { name, data }) => {
@@ -409,10 +355,19 @@ ipcMain.handle('save-file', async (_e, { name, data }) => {
   try {
     fs.writeFileSync(result.filePath, Buffer.from(data, 'base64'));
     return { ok: true, path: result.filePath };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
+  } catch (e) { return { ok: false, error: e.message }; }
 });
+
+// ---------- Sticky window IPC ----------
+ipcMain.handle('show-sticky', (_e, note) => { showSticky(note); return { ok: true }; });
+ipcMain.handle('hide-sticky', () => {
+  if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
+  return { ok: true };
+});
+ipcMain.on('close-sticky', () => {
+  if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
+});
+ipcMain.on('sticky-nav', (_e, dir) => navSticky(dir));
 
 // ---------- Screen capture IPC ----------
 let captureOverlay = null;
@@ -420,18 +375,15 @@ let captureOverlay = null;
 ipcMain.handle('capture-area', async () => {
   if (captureOverlay && !captureOverlay.isDestroyed()) return { ok: false, error: 'already-capturing' };
 
-  // Use the display that contains the main window
   const winBounds = mainWindow ? mainWindow.getBounds() : null;
   const display = winBounds ? screen.getDisplayMatching(winBounds) : screen.getPrimaryDisplay();
   const { width, height } = display.size;
   const scale = display.scaleFactor || 1;
 
-  // Capture screenshot silently before opening overlay
   const sources = await desktopCapturer.getSources({
     types: ['screen'],
     thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) }
   });
-  // Match source to the correct display
   const displayId = String(display.id);
   const src = sources.find(s => s.display_id === displayId) || sources[0];
   if (!src) return { ok: false, error: 'no-source' };
@@ -447,7 +399,7 @@ ipcMain.handle('capture-area', async () => {
         contextIsolation: true, nodeIntegration: false
       }
     });
-    captureOverlay.loadFile('renderer/capture.html');
+    loadRenderer(captureOverlay, 'capture.html');
     captureOverlay.once('ready-to-show', () => {
       captureOverlay.webContents.send('capture-init', { width, height, scale });
     });
@@ -468,13 +420,10 @@ ipcMain.handle('capture-area', async () => {
   });
 });
 
-// ---------- Interviewer: start TCP server ----------
-ipcMain.handle('start-server', (event, port) => {
+// ---------- TCP: Interviewer server ----------
+ipcMain.handle('start-server', (_e, port) => {
   return new Promise((resolve, reject) => {
-    if (tcpServer) {
-      resolve({ ok: true, port });
-      return;
-    }
+    if (tcpServer) { resolve({ ok: true, port }); return; }
     tcpServer = net.createServer((socket) => {
       socket.setEncoding('utf8');
       let buffer = '';
@@ -485,17 +434,13 @@ ipcMain.handle('start-server', (event, port) => {
           const line = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 1);
           if (!line) continue;
-          try {
-            const msg = JSON.parse(line);
-            mainWindow.webContents.send('chat-message', msg);
-          } catch (e) { /* ignore bad line */ }
+          try { mainWindow.webContents.send('chat-message', JSON.parse(line)); }
+          catch {}
         }
       });
       socket.on('error', () => {});
       mainWindow.webContents.send('peer-status', { connected: true });
-      socket.on('close', () => {
-        mainWindow.webContents.send('peer-status', { connected: false });
-      });
+      socket.on('close', () => mainWindow.webContents.send('peer-status', { connected: false }));
       tcpServer._socket = socket;
     });
     tcpServer.on('error', (err) => reject(err.message));
@@ -503,13 +448,10 @@ ipcMain.handle('start-server', (event, port) => {
   });
 });
 
-// ---------- Support: connect to interviewer ----------
-ipcMain.handle('connect', (event, { host, port }) => {
+// ---------- TCP: Support client ----------
+ipcMain.handle('connect', (_e, { host, port }) => {
   return new Promise((resolve, reject) => {
-    if (tcpClient) {
-      tcpClient.destroy();
-      tcpClient = null;
-    }
+    if (tcpClient) { tcpClient.destroy(); tcpClient = null; }
     tcpClient = net.createConnection({ host, port }, () => {
       mainWindow.webContents.send('peer-status', { connected: true });
       resolve({ ok: true });
@@ -523,40 +465,28 @@ ipcMain.handle('connect', (event, { host, port }) => {
         const line = buffer.slice(0, idx);
         buffer = buffer.slice(idx + 1);
         if (!line) continue;
-        try {
-          const msg = JSON.parse(line);
-          mainWindow.webContents.send('chat-message', msg);
-        } catch (e) { /* ignore */ }
+        try { mainWindow.webContents.send('chat-message', JSON.parse(line)); }
+        catch {}
       }
     });
     tcpClient.on('error', (err) => {
       mainWindow.webContents.send('peer-status', { connected: false, error: err.message });
       reject(err.message);
     });
-    tcpClient.on('close', () => {
-      mainWindow.webContents.send('peer-status', { connected: false });
-    });
+    tcpClient.on('close', () => mainWindow.webContents.send('peer-status', { connected: false }));
   });
 });
 
 ipcMain.handle('disconnect', () => {
-  if (tcpClient) {
-    tcpClient.destroy();
-    tcpClient = null;
-  }
+  if (tcpClient) { tcpClient.destroy(); tcpClient = null; }
   return { ok: true };
 });
 
-// ---------- Send message ----------
-ipcMain.handle('send-message', (event, payload) => {
+ipcMain.handle('send-message', (_e, payload) => {
   const line = JSON.stringify(payload) + '\n';
-  if (tcpClient && !tcpClient.destroyed) {
-    tcpClient.write(line);
-    return { ok: true };
-  }
+  if (tcpClient && !tcpClient.destroyed) { tcpClient.write(line); return { ok: true }; }
   if (tcpServer && tcpServer._socket && !tcpServer._socket.destroyed) {
-    tcpServer._socket.write(line);
-    return { ok: true };
+    tcpServer._socket.write(line); return { ok: true };
   }
   return { ok: false, error: 'Not connected' };
 });
