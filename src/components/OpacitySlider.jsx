@@ -1,18 +1,30 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Tooltip } from '@mui/material';
 import OpacityIcon from '@mui/icons-material/Opacity';
 
-const MIN = 0.2;
+const STORAGE_KEY = 'opacity';
+
+function loadOpacity() {
+  try {
+    const v = parseFloat(localStorage.getItem(STORAGE_KEY));
+    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+  } catch { return 1; }
+}
 
 export default function OpacitySlider() {
-  const [value, setValue] = useState(1);
+  const [value, setValue] = useState(loadOpacity);
   const trackRef = useRef(null);
+
+  useEffect(() => {
+    window.api.winOpacity(value);
+  }, []);
 
   const onMove = (e) => {
     const rect = trackRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const v = MIN + ratio * (1 - MIN);
+    const v = ratio;
     setValue(v);
+    localStorage.setItem(STORAGE_KEY, v);
     window.api.winOpacity(v);
   };
 
@@ -33,13 +45,13 @@ export default function OpacitySlider() {
             sx={{
               position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
               height: 3, bgcolor: 'primary.main', borderRadius: 2,
-              width: `${((value - MIN) / (1 - MIN)) * 100}%`
+              width: `${value * 100}%`
             }}
           />
           <Box
             sx={{
               position: 'absolute', top: '50%',
-              left: `${((value - MIN) / (1 - MIN)) * 100}%`,
+              left: `${value * 100}%`,
               transform: 'translate(-50%,-50%)',
               width: 10, height: 10, borderRadius: '50%',
               bgcolor: 'primary.main', pointerEvents: 'none'

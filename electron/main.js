@@ -13,28 +13,31 @@ let tcpServer = null;
 let tcpClient = null;
 
 const MOVE_STEP = 40;
-const SIZES = { mobile: { w: 420, h: 780 }, tablet: { w: 900, h: 700 } };
+const DEFAULT_SIZES = { mobile: { w: 420, h: 780 }, tablet: { w: 900, h: 700 } };
+let contentProtected = false;
 
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
 const defaultSettings = {
   hotkeys: {
-    sizeMobile:   'CommandOrControl+Alt+1',
-    sizeTablet:   'CommandOrControl+Alt+2',
-    toggleShow:   'CommandOrControl+Alt+H',
-    moveUp:       'CommandOrControl+Alt+Up',
-    moveDown:     'CommandOrControl+Alt+Down',
-    moveLeft:     'CommandOrControl+Alt+Left',
-    moveRight:    'CommandOrControl+Alt+Right',
-    helpRequest:  'CommandOrControl+Alt+/',
-    focusCaption: 'CommandOrControl+Alt+4',
-    focusWeb:     'CommandOrControl+Alt+5',
-    focusChat:    'CommandOrControl+Alt+6',
-    toggleSticky: 'CommandOrControl+Alt+S',
-    stickyPrev:   'CommandOrControl+Alt+[',
-    stickyNext:   'CommandOrControl+Alt+]',
-    captureArea:  'CommandOrControl+Alt+C'
+    sizeMobile:       'CommandOrControl+Alt+1',
+    sizeTablet:       'CommandOrControl+Alt+2',
+    toggleShow:       'CommandOrControl+Alt+H',
+    toggleProtection: 'CommandOrControl+Alt+P',
+    moveUp:           'CommandOrControl+Alt+Up',
+    moveDown:         'CommandOrControl+Alt+Down',
+    moveLeft:         'CommandOrControl+Alt+Left',
+    moveRight:        'CommandOrControl+Alt+Right',
+    helpRequest:      'CommandOrControl+Alt+/',
+    focusCaption:     'CommandOrControl+Alt+4',
+    focusWeb:         'CommandOrControl+Alt+5',
+    focusChat:        'CommandOrControl+Alt+6',
+    toggleSticky:     'CommandOrControl+Alt+S',
+    stickyPrev:       'CommandOrControl+Alt+[',
+    stickyNext:       'CommandOrControl+Alt+]',
+    captureArea:      'CommandOrControl+Alt+C'
   },
+  sizes: { mobile: { w: 420, h: 780 }, tablet: { w: 900, h: 700 } },
   webpages: ['https://example.com', 'https://developer.mozilla.org']
 };
 
@@ -46,6 +49,7 @@ function loadSettings() {
     const parsed = JSON.parse(raw);
     return {
       hotkeys: { ...defaultSettings.hotkeys, ...(parsed.hotkeys || {}) },
+      sizes: { ...defaultSettings.sizes, ...(parsed.sizes || {}) },
       webpages: Array.isArray(parsed.webpages) ? parsed.webpages : defaultSettings.webpages
     };
   } catch {
@@ -70,6 +74,7 @@ function createWindow() {
     minWidth: 380,
     minHeight: 500,
     frame: false,
+    resizable: false,
     backgroundColor: '#121212',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -101,6 +106,23 @@ ipcMain.handle('win-is-maximized', () => mainWindow?.isMaximized() ?? false);
 
 ipcMain.on('win-opacity', (_e, value) => {
   if (mainWindow) mainWindow.setOpacity(value);
+});
+
+ipcMain.on('win-content-protection', (_e, on) => {
+  if (!mainWindow) return;
+  contentProtected = !!on;
+  mainWindow.setContentProtection(contentProtected);
+  mainWindow.webContents.send('protection-state', contentProtected);
+});
+
+ipcMain.on('win-set-resizable', (_e, on) => {
+  if (mainWindow) mainWindow.setResizable(!!on);
+});
+
+ipcMain.handle('win-get-size', () => {
+  if (!mainWindow) return { w: 0, h: 0 };
+  const [w, h] = mainWindow.getSize();
+  return { w, h };
 });
 
 // ---------- Sticky note window ----------
@@ -140,10 +162,17 @@ function toggleStickyVisibility() {
 // ---------- hotkey actions ----------
 function setSize(preset) {
   if (!mainWindow) return;
-  const { w, h } = SIZES[preset];
+  const { w, h } = settings.sizes[preset] || DEFAULT_SIZES[preset];
   if (mainWindow.isMaximized()) mainWindow.unmaximize();
   if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
   mainWindow.setSize(w, h);
+}
+
+function toggleProtection() {
+  if (!mainWindow) return;
+  contentProtected = !contentProtected;
+  mainWindow.setContentProtection(contentProtected);
+  mainWindow.webContents.send('protection-state', contentProtected);
 }
 
 function toggleVisibility() {
@@ -173,9 +202,10 @@ function navSticky(dir) {
 }
 
 const hotkeyActions = {
-  sizeMobile:   () => setSize('mobile'),
-  sizeTablet:   () => setSize('tablet'),
-  toggleShow:   toggleVisibility,
+  sizeMobile:       () => setSize('mobile'),
+  sizeTablet:       () => setSize('tablet'),
+  toggleShow:       toggleVisibility,
+  toggleProtection: toggleProtection,
   moveUp:       () => moveWindow(0, -MOVE_STEP),
   moveDown:     () => moveWindow(0,  MOVE_STEP),
   moveLeft:     () => moveWindow(-MOVE_STEP, 0),
@@ -218,6 +248,7 @@ ipcMain.handle('resume-hotkeys', () => { registerHotkeys(); });
 ipcMain.handle('get-settings', () => settings);
 ipcMain.handle('set-settings', (_e, next) => {
   if (next.hotkeys) settings.hotkeys = { ...settings.hotkeys, ...next.hotkeys };
+  if (next.sizes) settings.sizes = { ...settings.sizes, ...next.sizes };
   if (Array.isArray(next.webpages)) settings.webpages = next.webpages;
   saveSettings();
   registerHotkeys();
