@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, Grid, IconButton, Paper, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import TuneIcon from '@mui/icons-material/Tune';
 import TitleBar from '../../components/TitleBar';
 import HotkeyField from './HotkeyField';
 import WebpageList from './WebpageList';
 import { useApp } from '../../context/AppContext';
 
 const HOTKEYS = [
-  ['sizeMobile', 'Window → Mobile'],
-  ['sizeTablet', 'Window → Tablet'],
+  ['sizeMobile', 'Window \u2192 Mobile'],
+  ['sizeTablet', 'Window \u2192 Tablet'],
   ['toggleShow', 'Hide / Show window'],
+  ['toggleProtection', 'Toggle Protection'],
   ['moveUp', 'Move Up'],
   ['moveDown', 'Move Down'],
   ['moveLeft', 'Move Left'],
@@ -24,6 +26,47 @@ const HOTKEYS = [
   ['captureArea', 'Capture Screen Area']
 ];
 
+function SizeRow({ label, size, onSet }) {
+  const [adjusting, setAdjusting] = useState(false);
+
+  const toggle = async () => {
+    if (!adjusting) {
+      // Enable resize and set window to current preset size
+      window.api.winSetResizable(true);
+      window.api.winCtrl('maximize'); // unmaximize if needed
+      // Give a moment then set the preset size so user sees it
+      setTimeout(() => {
+        // Window is now resizable, user can drag to desired size
+      }, 100);
+      setAdjusting(true);
+    } else {
+      // Read current size and save
+      const { w, h } = await window.api.winGetSize();
+      onSet({ w, h });
+      window.api.winSetResizable(false);
+      setAdjusting(false);
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
+      <Typography variant="body2" sx={{ minWidth: 80 }}>{label}</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mx: 2 }}>
+        {size.w} x {size.h}
+      </Typography>
+      <Button
+        size="small"
+        variant={adjusting ? 'contained' : 'outlined'}
+        color={adjusting ? 'warning' : 'primary'}
+        startIcon={<TuneIcon />}
+        onClick={toggle}
+      >
+        {adjusting ? 'Save Size' : 'Set Size'}
+      </Button>
+    </Box>
+  );
+}
+
 export default function Settings() {
   const { settings, saveSettings, setView } = useApp();
   const [draft, setDraft] = useState(settings);
@@ -33,6 +76,10 @@ export default function Settings() {
   const save = async () => {
     await saveSettings(draft);
     setView('role');
+  };
+
+  const updateSize = (preset, size) => {
+    setDraft(d => ({ ...d, sizes: { ...d.sizes, [preset]: size } }));
   };
 
   return (
@@ -63,6 +110,25 @@ export default function Settings() {
           </Grid>
 
           <Grid item xs={12} lg={6}>
+            <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>Window Sizes</Typography>
+              <Typography variant="caption" color="text.secondary" display="block" mb={2}>
+                Click "Set Size" to enable resize, drag the window to desired size, then click "Save Size".
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <SizeRow
+                  label="Mobile"
+                  size={draft.sizes?.mobile || { w: 420, h: 780 }}
+                  onSet={(s) => updateSize('mobile', s)}
+                />
+                <SizeRow
+                  label="Tablet"
+                  size={draft.sizes?.tablet || { w: 900, h: 700 }}
+                  onSet={(s) => updateSize('tablet', s)}
+                />
+              </Box>
+            </Paper>
+
             <Paper variant="outlined" sx={{ p: 2.5 }}>
               <Typography variant="h6" gutterBottom>Webpage List</Typography>
               <Typography variant="caption" color="text.secondary" display="block" mb={2}>

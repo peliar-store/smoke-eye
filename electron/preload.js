@@ -5,7 +5,11 @@ contextBridge.exposeInMainWorld('api', {
   winCtrl: (cmd) => ipcRenderer.send('win-ctrl', cmd),
   winIsMaximized: () => ipcRenderer.invoke('win-is-maximized'),
   winOpacity: (v) => ipcRenderer.send('win-opacity', v),
+  winContentProtection: (on) => ipcRenderer.send('win-content-protection', on),
+  winSetResizable: (on) => ipcRenderer.send('win-set-resizable', on),
+  winGetSize: () => ipcRenderer.invoke('win-get-size'),
   onWinState: (cb) => ipcRenderer.on('win-state', (_e, s) => cb(s)),
+  onProtectionState: (cb) => ipcRenderer.on('protection-state', (_e, v) => cb(v)),
 
   // Connection
   startServer: (port) => ipcRenderer.invoke('start-server', port),

@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { Box, IconButton, Slider, Tooltip, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import MinimizeIcon from '@mui/icons-material/Minimize';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import FilterNoneIcon from '@mui/icons-material/FilterNone';
 import CloseIcon from '@mui/icons-material/Close';
-import OpacityIcon from '@mui/icons-material/Opacity';
 import ShieldIcon from '@mui/icons-material/Shield';
 import OpacitySlider from './OpacitySlider';
 
@@ -13,13 +12,19 @@ const noDrag = { WebkitAppRegion: 'no-drag' };
 
 export default function TitleBar({ title = 'Interview Support', children }) {
   const [maximized, setMaximized] = useState(false);
-  const [opacity, setOpacity] = useState(1);
-  const trackRef = useRef(null);
+  const [shielded, setShielded] = useState(false);
 
   useEffect(() => {
     window.api.winIsMaximized().then(setMaximized);
     window.api.onWinState((s) => setMaximized(s.maximized));
+    window.api.onProtectionState((v) => setShielded(v));
   }, []);
+
+  const toggleShield = () => {
+    const next = !shielded;
+    setShielded(next);
+    window.api.winContentProtection(next);
+  };
 
   return (
     <Box
@@ -49,9 +54,9 @@ export default function TitleBar({ title = 'Interview Support', children }) {
         <OpacitySlider />
       </Box>
 
-      <Tooltip title="Shield">
-        <IconButton size="small" sx={{ ...noDrag, mr: 0.5 }}>
-          <ShieldIcon sx={{ fontSize: 16 }} />
+      <Tooltip title={shielded ? 'Protection ON' : 'Protection OFF'}>
+        <IconButton size="small" onClick={toggleShield} sx={{ ...noDrag, mr: 0.5 }}>
+          <ShieldIcon sx={{ fontSize: 16, color: shielded ? 'warning.main' : 'text.secondary' }} />
         </IconButton>
       </Tooltip>
 
