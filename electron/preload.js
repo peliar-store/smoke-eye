@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   winContentProtection: (on) => ipcRenderer.send('win-content-protection', on),
   winSetResizable: (on) => ipcRenderer.send('win-set-resizable', on),
   winGetSize: () => ipcRenderer.invoke('win-get-size'),
+  winSetSize: (w, h) => ipcRenderer.send('win-set-size', { w, h }),
   onWinState: (cb) => ipcRenderer.on('win-state', (_e, s) => cb(s)),
   onProtectionState: (cb) => ipcRenderer.on('protection-state', (_e, v) => cb(v)),
 

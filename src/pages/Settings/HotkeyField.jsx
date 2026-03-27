@@ -40,7 +40,7 @@ export default function HotkeyField({ label, value, onChange }) {
         size="small"
         sx={{
           width: 180, fontFamily: 'monospace', fontSize: 12,
-          '& input': { textAlign: 'center', cursor: 'pointer' },
+          '& input': { textAlign: 'center' },
           ...(recording && { boxShadow: '0 0 0 2px rgba(59,130,246,.4)' })
         }}
       />

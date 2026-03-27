@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Badge, Box, IconButton, Snackbar, useMediaQuery } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PushPinIcon from '@mui/icons-material/PushPin';
@@ -21,6 +22,12 @@ const PANELS = [
 export default function Interviewer() {
   const { setView, connected, focus, setFocus, toast, setToast, badge, showStickyAt, doCapture, currentStickyIdx } = useApp();
   const isTablet = useMediaQuery('(min-width:900px)');
+  const [maximized, setMaximized] = useState(false);
+
+  useEffect(() => {
+    window.api.winIsMaximized().then(setMaximized);
+    window.api.onWinState((s) => setMaximized(s.maximized));
+  }, []);
 
   // Grid areas: active panel = 'm', others = 'a'/'b' in original order
   let sideIdx = 0;
@@ -29,17 +36,26 @@ export default function Interviewer() {
     areaMap[p.id] = p.id === focus ? 'm' : (sideIdx++ === 0 ? 'a' : 'b');
   });
 
-  const gridSx = isTablet
-    ? {
-        gridTemplateColumns: '1fr 280px',
-        gridTemplateRows: '1fr 1fr',
-        gridTemplateAreas: '"m a" "m b"'
-      }
-    : {
-        gridTemplateColumns: '1fr',
-        gridTemplateRows: PANELS.map(p => p.id === focus ? '1fr' : 'auto').join(' '),
-        gridTemplateAreas: PANELS.map(p => `"${areaMap[p.id]}"`).join(' ')
-      };
+  let gridSx;
+  if (maximized) {
+    gridSx = {
+      gridTemplateColumns: '1fr 1fr 1fr',
+      gridTemplateRows: '1fr',
+      gridTemplateAreas: `"${PANELS.map(p => areaMap[p.id]).join(' ')}"`
+    };
+  } else if (isTablet) {
+    gridSx = {
+      gridTemplateColumns: '1fr 280px',
+      gridTemplateRows: '1fr 1fr',
+      gridTemplateAreas: '"m a" "m b"'
+    };
+  } else {
+    gridSx = {
+      gridTemplateColumns: '1fr',
+      gridTemplateRows: PANELS.map(p => p.id === focus ? '1fr' : 'auto').join(' '),
+      gridTemplateAreas: PANELS.map(p => `"${areaMap[p.id]}"`).join(' ')
+    };
+  }
 
   return (
     <>
@@ -58,7 +74,7 @@ export default function Interviewer() {
       <Box sx={{ flex: 1, minHeight: 0, display: 'grid', gap: 1, p: 1, ...gridSx }}>
         {PANELS.map(p => {
           const isMain = p.id === focus;
-          const mode = isMain ? 'main' : isTablet ? 'side' : 'collapsed';
+          const mode = maximized ? 'main' : isMain ? 'main' : isTablet ? 'side' : 'collapsed';
           return (
             <Box key={p.id} sx={{ gridArea: areaMap[p.id], minHeight: 0, display: 'flex' }}>
               <Panel title={p.title} mode={mode} onSelect={() => setFocus(p.id)}>
@@ -77,7 +93,7 @@ export default function Interviewer() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         message={
           toast && (
-            <Box sx={{ cursor: 'pointer', maxWidth: 280 }}>
+            <Box sx={{ maxWidth: 280 }}>
               <Box sx={{ fontSize: 11, color: 'secondary.main', fontWeight: 600, mb: 0.5 }}>
                 💬 Support says
               </Box>

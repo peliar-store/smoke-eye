@@ -7,16 +7,17 @@
   <title>Sticky Note</title>
   <style>
     html, body { height: 100%; margin: 0; overflow: hidden; font-family: system-ui, sans-serif; }
+    *, *::before, *::after { cursor: default !important; }
     body { background: #fef3c7; color: #18181b; display: flex; flex-direction: column; user-select: none; }
     .drag { -webkit-app-region: drag; }
     .no-drag { -webkit-app-region: no-drag; }
     header {
       display: flex; align-items: center; gap: 4px; padding: 8px;
-      background: #fde68a; border-bottom: 1px solid #fbbf24; cursor: move;
+      background: #fde68a; border-bottom: 1px solid #fbbf24;
     }
     button {
       width: 24px; height: 24px; border: none; border-radius: 4px;
-      background: transparent; color: #92400e; cursor: pointer; font-size: 13px;
+      background: transparent; color: #92400e; font-size: 13px;
     }
     button:hover { background: #fcd34d; }
     #title { flex: 1; font-weight: 700; font-size: 13px; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

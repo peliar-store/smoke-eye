@@ -1,6 +1,7 @@
 const {
   app,
   BrowserWindow,
+  Menu,
   ipcMain,
   globalShortcut,
   screen,
@@ -149,6 +150,8 @@ ipcMain.handle("win-get-size", () => {
   return { w, h };
 });
 
+ipcMain.on("win-set-size", (_e, { w, h }) => applySize(w, h));
+
 // ---------- Sticky note window ----------
 function createStickyWindow() {
   if (stickyWindow && !stickyWindow.isDestroyed()) return stickyWindow;
@@ -199,12 +202,20 @@ function toggleStickyVisibility() {
 }
 
 // ---------- hotkey actions ----------
-function setSize(preset) {
+function applySize(w, h) {
   if (!mainWindow) return;
-  const { w, h } = settings.sizes[preset] || DEFAULT_SIZES[preset];
   if (mainWindow.isMaximized()) mainWindow.unmaximize();
   if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
+  const wasResizable = mainWindow.isResizable();
+  if (!wasResizable) mainWindow.setResizable(true);
+  mainWindow.setMinimumSize(Math.min(380, w), Math.min(500, h));
   mainWindow.setSize(w, h);
+  if (!wasResizable) mainWindow.setResizable(false);
+}
+
+function setSize(preset) {
+  const { w, h } = settings.sizes[preset] || DEFAULT_SIZES[preset];
+  applySize(w, h);
 }
 
 function toggleProtection() {
@@ -292,6 +303,7 @@ function registerHotkeys() {
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   createWindow();
   registerHotkeys();
 });

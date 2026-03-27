@@ -37,7 +37,7 @@ export default function OpacitySlider() {
           onMouseMove={onMove}
           sx={{
             width: 70, height: 16, display: 'flex', alignItems: 'center',
-            cursor: 'ew-resize', position: 'relative'
+            position: 'relative'
           }}
         >
           <Box sx={{ width: '100%', height: 3, bgcolor: 'action.disabled', borderRadius: 2 }} />
