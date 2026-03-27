@@ -16,6 +16,8 @@ const HOTKEYS = [
   ['moveDown', 'Move Down'],
   ['moveLeft', 'Move Left'],
   ['moveRight', 'Move Right'],
+  ['opacityUp', 'Opacity Up'],
+  ['opacityDown', 'Opacity Down'],
   ['helpRequest', 'Help Request'],
   ['focusCaption', 'Focus Caption'],
   ['focusWeb', 'Focus Web'],
@@ -85,26 +87,29 @@ export default function Settings() {
 
       <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 2, md: 3 } }}>
         <Grid container spacing={3}>
-          <Grid item xs={12} lg={6}>
+          {/* Hotkeys — split into two sub-columns on md+ */}
+          <Grid item xs={12} md={7} xl={8}>
             <Paper variant="outlined" sx={{ p: 2.5 }}>
               <Typography variant="h6" gutterBottom>Hotkeys</Typography>
               <Typography variant="caption" color="text.secondary" display="block" mb={2}>
                 Click a field and press the key combination.
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Grid container spacing={1}>
                 {HOTKEYS.map(([key, label]) => (
-                  <HotkeyField
-                    key={key}
-                    label={label}
-                    value={draft.hotkeys[key] || ''}
-                    onChange={v => setDraft(d => ({ ...d, hotkeys: { ...d.hotkeys, [key]: v } }))}
-                  />
+                  <Grid item xs={12} lg={6} key={key}>
+                    <HotkeyField
+                      label={label}
+                      value={draft.hotkeys[key] || ''}
+                      onChange={v => setDraft(d => ({ ...d, hotkeys: { ...d.hotkeys, [key]: v } }))}
+                    />
+                  </Grid>
                 ))}
-              </Box>
+              </Grid>
             </Paper>
           </Grid>
 
-          <Grid item xs={12} lg={6}>
+          {/* Right column: Window Sizes + Webpage List */}
+          <Grid item xs={12} md={5} xl={4}>
             <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
               <Typography variant="h6" gutterBottom>Window Sizes</Typography>
               <Typography variant="caption" color="text.secondary" display="block" mb={2}>

@@ -122,6 +122,8 @@ export function AppProvider({ children }) {
       else if (a.action === 'navSticky' && r === 'interviewer') showStickyAt(currentStickyIdx.current + a.dir);
       else if (a.action === 'captureArea' && r === 'interviewer') doCapture();
       else if (a.action === 'helpRequest') sendMsg('🆘 Help request', '<b>🆘 Help request</b>');
+      else if (a.action === 'opacityUp' || a.action === 'opacityDown')
+        window.dispatchEvent(new CustomEvent('opacity-hotkey', { detail: a.action }));
     });
   }, [showStickyAt, doCapture, sendMsg]);
 
