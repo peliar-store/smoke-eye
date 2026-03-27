@@ -1,11 +1,20 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, dialog, desktopCapturer, clipboard } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const net = require('net');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  globalShortcut,
+  screen,
+  dialog,
+  desktopCapturer,
+  clipboard,
+} = require("electron");
+const path = require("path");
+const fs = require("fs");
+const net = require("net");
 
 const isDev = !!process.env.VITE_DEV;
-const DEV_URL = 'http://localhost:5173';
-const DIST = path.join(__dirname, '..', 'dist');
+const DEV_URL = "http://localhost:5173";
+const DIST = path.join(__dirname, "..", "dist");
 
 let mainWindow;
 let stickyWindow = null;
@@ -13,44 +22,49 @@ let tcpServer = null;
 let tcpClient = null;
 
 const MOVE_STEP = 40;
-const DEFAULT_SIZES = { mobile: { w: 420, h: 780 }, tablet: { w: 900, h: 700 } };
+const DEFAULT_SIZES = {
+  mobile: { w: 420, h: 780 },
+  tablet: { w: 900, h: 700 },
+};
 let contentProtected = false;
 
-const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+const settingsPath = path.join(app.getPath("userData"), "settings.json");
 
 const defaultSettings = {
   hotkeys: {
-    sizeMobile:       'CommandOrControl+Alt+1',
-    sizeTablet:       'CommandOrControl+Alt+2',
-    toggleShow:       'CommandOrControl+Alt+H',
-    toggleProtection: 'CommandOrControl+Alt+P',
-    moveUp:           'CommandOrControl+Alt+Up',
-    moveDown:         'CommandOrControl+Alt+Down',
-    moveLeft:         'CommandOrControl+Alt+Left',
-    moveRight:        'CommandOrControl+Alt+Right',
-    helpRequest:      'CommandOrControl+Alt+/',
-    focusCaption:     'CommandOrControl+Alt+4',
-    focusWeb:         'CommandOrControl+Alt+5',
-    focusChat:        'CommandOrControl+Alt+6',
-    toggleSticky:     'CommandOrControl+Alt+S',
-    stickyPrev:       'CommandOrControl+Alt+[',
-    stickyNext:       'CommandOrControl+Alt+]',
-    captureArea:      'CommandOrControl+Alt+C'
+    sizeMobile: "CommandOrControl+Alt+1",
+    sizeTablet: "CommandOrControl+Alt+2",
+    toggleShow: "CommandOrControl+Alt+H",
+    toggleProtection: "CommandOrControl+Alt+P",
+    moveUp: "CommandOrControl+Alt+Up",
+    moveDown: "CommandOrControl+Alt+Down",
+    moveLeft: "CommandOrControl+Alt+Left",
+    moveRight: "CommandOrControl+Alt+Right",
+    helpRequest: "CommandOrControl+Alt+/",
+    focusCaption: "CommandOrControl+Alt+4",
+    focusWeb: "CommandOrControl+Alt+5",
+    focusChat: "CommandOrControl+Alt+6",
+    toggleSticky: "CommandOrControl+Alt+S",
+    stickyPrev: "CommandOrControl+Alt+[",
+    stickyNext: "CommandOrControl+Alt+]",
+    captureArea: "CommandOrControl+Alt+C",
   },
   sizes: { mobile: { w: 420, h: 780 }, tablet: { w: 900, h: 700 } },
-  webpages: ['https://example.com', 'https://developer.mozilla.org']
+  webpages: ["https://example.com", "https://developer.mozilla.org"],
 };
 
 let settings = loadSettings();
 
 function loadSettings() {
   try {
-    const raw = fs.readFileSync(settingsPath, 'utf8');
+    const raw = fs.readFileSync(settingsPath, "utf8");
     const parsed = JSON.parse(raw);
     return {
       hotkeys: { ...defaultSettings.hotkeys, ...(parsed.hotkeys || {}) },
       sizes: { ...defaultSettings.sizes, ...(parsed.sizes || {}) },
-      webpages: Array.isArray(parsed.webpages) ? parsed.webpages : defaultSettings.webpages
+      webpages: Array.isArray(parsed.webpages)
+        ? parsed.webpages
+        : defaultSettings.webpages,
     };
   } catch {
     return JSON.parse(JSON.stringify(defaultSettings));
@@ -58,8 +72,11 @@ function loadSettings() {
 }
 
 function saveSettings() {
-  try { fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2)); }
-  catch (e) { console.error('save settings failed', e); }
+  try {
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  } catch (e) {
+    console.error("save settings failed", e);
+  }
 }
 
 function loadRenderer(win, page) {
@@ -75,51 +92,58 @@ function createWindow() {
     minHeight: 500,
     frame: false,
     resizable: false,
-    backgroundColor: '#121212',
+    backgroundColor: "#121212",
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      webviewTag: true
-    }
+      webviewTag: true,
+    },
   });
 
-  loadRenderer(mainWindow, 'index.html');
+  loadRenderer(mainWindow, "index.html");
 
-  mainWindow.on('maximize', () => mainWindow.webContents.send('win-state', { maximized: true }));
-  mainWindow.on('unmaximize', () => mainWindow.webContents.send('win-state', { maximized: false }));
-  mainWindow.on('closed', () => {
+  mainWindow.setContentProtection(true);
+
+  mainWindow.on("maximize", () =>
+    mainWindow.webContents.send("win-state", { maximized: true }),
+  );
+  mainWindow.on("unmaximize", () =>
+    mainWindow.webContents.send("win-state", { maximized: false }),
+  );
+  mainWindow.on("closed", () => {
     mainWindow = null;
     if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.close();
   });
 }
 
 // ---------- window controls IPC ----------
-ipcMain.on('win-ctrl', (_e, cmd) => {
+ipcMain.on("win-ctrl", (_e, cmd) => {
   if (!mainWindow) return;
-  if (cmd === 'minimize') mainWindow.minimize();
-  else if (cmd === 'maximize') mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
-  else if (cmd === 'close') mainWindow.close();
+  if (cmd === "minimize") mainWindow.minimize();
+  else if (cmd === "maximize")
+    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  else if (cmd === "close") mainWindow.close();
 });
 
-ipcMain.handle('win-is-maximized', () => mainWindow?.isMaximized() ?? false);
+ipcMain.handle("win-is-maximized", () => mainWindow?.isMaximized() ?? false);
 
-ipcMain.on('win-opacity', (_e, value) => {
+ipcMain.on("win-opacity", (_e, value) => {
   if (mainWindow) mainWindow.setOpacity(value);
 });
 
-ipcMain.on('win-content-protection', (_e, on) => {
+ipcMain.on("win-content-protection", (_e, on) => {
   if (!mainWindow) return;
   contentProtected = !!on;
   mainWindow.setContentProtection(contentProtected);
-  mainWindow.webContents.send('protection-state', contentProtected);
+  mainWindow.webContents.send("protection-state", contentProtected);
 });
 
-ipcMain.on('win-set-resizable', (_e, on) => {
+ipcMain.on("win-set-resizable", (_e, on) => {
   if (mainWindow) mainWindow.setResizable(!!on);
 });
 
-ipcMain.handle('win-get-size', () => {
+ipcMain.handle("win-get-size", () => {
   if (!mainWindow) return { w: 0, h: 0 };
   const [w, h] = mainWindow.getSize();
   return { w, h };
@@ -129,34 +153,49 @@ ipcMain.handle('win-get-size', () => {
 function createStickyWindow() {
   if (stickyWindow && !stickyWindow.isDestroyed()) return stickyWindow;
   stickyWindow = new BrowserWindow({
-    width: 320, height: 260,
-    frame: false, alwaysOnTop: true, resizable: true,
-    skipTaskbar: true, minimizable: false, maximizable: false, show: false,
+    width: 320,
+    height: 260,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: true,
+    skipTaskbar: true,
+    minimizable: false,
+    maximizable: false,
+    show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true, nodeIntegration: false
-    }
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
   });
-  loadRenderer(stickyWindow, 'sticky.html');
-  stickyWindow.on('closed', () => { stickyWindow = null; });
+  loadRenderer(stickyWindow, "sticky.html");
+  stickyWindow.on("closed", () => {
+    stickyWindow = null;
+  });
   return stickyWindow;
 }
 
 function showSticky(note) {
   const win = createStickyWindow();
-  const send = () => win.webContents.send('sticky-data', note);
-  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
+  const send = () => win.webContents.send("sticky-data", note);
+  if (win.webContents.isLoading())
+    win.webContents.once("did-finish-load", send);
   else send();
-  win.show(); win.focus();
+  win.show();
+  win.focus();
 }
 
 function toggleStickyVisibility() {
   if (!stickyWindow || stickyWindow.isDestroyed()) {
-    if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'toggleSticky' });
+    if (mainWindow)
+      mainWindow.webContents.send("hotkey-action", { action: "toggleSticky" });
     return;
   }
   if (stickyWindow.isVisible()) stickyWindow.hide();
-  else { stickyWindow.show(); stickyWindow.focus(); }
+  else {
+    stickyWindow.show();
+    stickyWindow.focus();
+  }
 }
 
 // ---------- hotkey actions ----------
@@ -172,52 +211,70 @@ function toggleProtection() {
   if (!mainWindow) return;
   contentProtected = !contentProtected;
   mainWindow.setContentProtection(contentProtected);
-  mainWindow.webContents.send('protection-state', contentProtected);
+  mainWindow.webContents.send("protection-state", contentProtected);
 }
 
 function toggleVisibility() {
   if (!mainWindow) return;
   if (mainWindow.isVisible()) mainWindow.hide();
-  else { mainWindow.show(); mainWindow.focus(); }
+  else {
+    mainWindow.show();
+    mainWindow.focus();
+  }
 }
 
 function moveWindow(dx, dy) {
   if (!mainWindow) return;
   const [x, y] = mainWindow.getPosition();
   const [w, h] = mainWindow.getSize();
-  const disp = screen.getDisplayMatching({ x, y, width: w, height: h }).workArea;
-  const nx = dx !== 0 ? Math.max(disp.x, Math.min(x + dx, disp.x + disp.width - w)) : x;
-  const ny = dy !== 0 ? Math.max(disp.y, Math.min(y + dy, disp.y + disp.height - h)) : y;
+  const disp = screen.getDisplayMatching({
+    x,
+    y,
+    width: w,
+    height: h,
+  }).workArea;
+  const nx =
+    dx !== 0 ? Math.max(disp.x, Math.min(x + dx, disp.x + disp.width - w)) : x;
+  const ny =
+    dy !== 0 ? Math.max(disp.y, Math.min(y + dy, disp.y + disp.height - h)) : y;
   mainWindow.setPosition(nx, ny);
 }
 
 function sendHelpRequest() {
-  if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'helpRequest' });
+  if (mainWindow)
+    mainWindow.webContents.send("hotkey-action", { action: "helpRequest" });
 }
 function focusPanel(panel) {
-  if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'focusPanel', panel });
+  if (mainWindow)
+    mainWindow.webContents.send("hotkey-action", {
+      action: "focusPanel",
+      panel,
+    });
 }
 function navSticky(dir) {
-  if (mainWindow) mainWindow.webContents.send('hotkey-action', { action: 'navSticky', dir });
+  if (mainWindow)
+    mainWindow.webContents.send("hotkey-action", { action: "navSticky", dir });
 }
 
 const hotkeyActions = {
-  sizeMobile:       () => setSize('mobile'),
-  sizeTablet:       () => setSize('tablet'),
-  toggleShow:       toggleVisibility,
+  sizeMobile: () => setSize("mobile"),
+  sizeTablet: () => setSize("tablet"),
+  toggleShow: toggleVisibility,
   toggleProtection: toggleProtection,
-  moveUp:       () => moveWindow(0, -MOVE_STEP),
-  moveDown:     () => moveWindow(0,  MOVE_STEP),
-  moveLeft:     () => moveWindow(-MOVE_STEP, 0),
-  moveRight:    () => moveWindow( MOVE_STEP, 0),
-  helpRequest:  sendHelpRequest,
-  focusCaption: () => focusPanel('caption'),
-  focusWeb:     () => focusPanel('web'),
-  focusChat:    () => focusPanel('chat'),
+  moveUp: () => moveWindow(0, -MOVE_STEP),
+  moveDown: () => moveWindow(0, MOVE_STEP),
+  moveLeft: () => moveWindow(-MOVE_STEP, 0),
+  moveRight: () => moveWindow(MOVE_STEP, 0),
+  helpRequest: sendHelpRequest,
+  focusCaption: () => focusPanel("caption"),
+  focusWeb: () => focusPanel("web"),
+  focusChat: () => focusPanel("chat"),
   toggleSticky: toggleStickyVisibility,
-  stickyPrev:   () => navSticky(-1),
-  stickyNext:   () => navSticky(1),
-  captureArea:  () => mainWindow && mainWindow.webContents.send('hotkey-action', { action: 'captureArea' })
+  stickyPrev: () => navSticky(-1),
+  stickyNext: () => navSticky(1),
+  captureArea: () =>
+    mainWindow &&
+    mainWindow.webContents.send("hotkey-action", { action: "captureArea" }),
 };
 
 function registerHotkeys() {
@@ -226,27 +283,37 @@ function registerHotkeys() {
     if (!accel) continue;
     const fn = hotkeyActions[key];
     if (!fn) continue;
-    try { globalShortcut.register(accel, fn); }
-    catch (e) { console.error('hotkey register failed', key, accel, e.message); }
+    try {
+      globalShortcut.register(accel, fn);
+    } catch (e) {
+      console.error("hotkey register failed", key, accel, e.message);
+    }
   }
 }
 
-app.whenReady().then(() => { createWindow(); registerHotkeys(); });
-app.on('will-quit', () => globalShortcut.unregisterAll());
-app.on('window-all-closed', () => {
+app.whenReady().then(() => {
+  createWindow();
+  registerHotkeys();
+});
+app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("window-all-closed", () => {
   if (tcpServer) tcpServer.close();
   if (tcpClient) tcpClient.destroy();
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== "darwin") app.quit();
 });
-app.on('activate', () => {
+app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
 // ---------- settings IPC ----------
-ipcMain.handle('suspend-hotkeys', () => { globalShortcut.unregisterAll(); });
-ipcMain.handle('resume-hotkeys', () => { registerHotkeys(); });
-ipcMain.handle('get-settings', () => settings);
-ipcMain.handle('set-settings', (_e, next) => {
+ipcMain.handle("suspend-hotkeys", () => {
+  globalShortcut.unregisterAll();
+});
+ipcMain.handle("resume-hotkeys", () => {
+  registerHotkeys();
+});
+ipcMain.handle("get-settings", () => settings);
+ipcMain.handle("set-settings", (_e, next) => {
   if (next.hotkeys) settings.hotkeys = { ...settings.hotkeys, ...next.hotkeys };
   if (next.sizes) settings.sizes = { ...settings.sizes, ...next.sizes };
   if (Array.isArray(next.webpages)) settings.webpages = next.webpages;
@@ -256,163 +323,219 @@ ipcMain.handle('set-settings', (_e, next) => {
 });
 
 // ---------- File IPC ----------
-ipcMain.handle('open-file-dialog', async () => {
+ipcMain.handle("open-file-dialog", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile', 'multiSelections'],
+    properties: ["openFile", "multiSelections"],
     filters: [
-      { name: 'Documents', extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'md'] },
-      { name: 'All Files', extensions: ['*'] }
-    ]
+      {
+        name: "Documents",
+        extensions: ["pdf", "doc", "docx", "txt", "rtf", "md"],
+      },
+      { name: "All Files", extensions: ["*"] },
+    ],
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths;
 });
 
-ipcMain.handle('read-file', (_e, filePath) => {
+ipcMain.handle("read-file", (_e, filePath) => {
   try {
     const data = fs.readFileSync(filePath);
-    return { ok: true, name: path.basename(filePath), data: data.toString('base64') };
-  } catch (e) { return { ok: false, error: e.message }; }
+    return {
+      ok: true,
+      name: path.basename(filePath),
+      data: data.toString("base64"),
+    };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 
-ipcMain.handle('save-file', async (_e, { name, data }) => {
+ipcMain.handle("save-file", async (_e, { name, data }) => {
   const result = await dialog.showSaveDialog(mainWindow, { defaultPath: name });
   if (result.canceled || !result.filePath) return { ok: false };
   try {
-    fs.writeFileSync(result.filePath, Buffer.from(data, 'base64'));
+    fs.writeFileSync(result.filePath, Buffer.from(data, "base64"));
     return { ok: true, path: result.filePath };
-  } catch (e) { return { ok: false, error: e.message }; }
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 
 // ---------- Sticky window IPC ----------
-ipcMain.handle('show-sticky', (_e, note) => { showSticky(note); return { ok: true }; });
-ipcMain.handle('hide-sticky', () => {
+ipcMain.handle("show-sticky", (_e, note) => {
+  showSticky(note);
+  return { ok: true };
+});
+ipcMain.handle("hide-sticky", () => {
   if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
   return { ok: true };
 });
-ipcMain.on('close-sticky', () => {
+ipcMain.on("close-sticky", () => {
   if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
 });
-ipcMain.on('sticky-nav', (_e, dir) => navSticky(dir));
+ipcMain.on("sticky-nav", (_e, dir) => navSticky(dir));
 
 // ---------- Screen capture IPC ----------
 let captureOverlay = null;
 
-ipcMain.handle('capture-area', async () => {
-  if (captureOverlay && !captureOverlay.isDestroyed()) return { ok: false, error: 'already-capturing' };
+ipcMain.handle("capture-area", async () => {
+  if (captureOverlay && !captureOverlay.isDestroyed())
+    return { ok: false, error: "already-capturing" };
 
   const winBounds = mainWindow ? mainWindow.getBounds() : null;
-  const display = winBounds ? screen.getDisplayMatching(winBounds) : screen.getPrimaryDisplay();
+  const display = winBounds
+    ? screen.getDisplayMatching(winBounds)
+    : screen.getPrimaryDisplay();
   const { width, height } = display.size;
   const scale = display.scaleFactor || 1;
 
   const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) }
+    types: ["screen"],
+    thumbnailSize: {
+      width: Math.round(width * scale),
+      height: Math.round(height * scale),
+    },
   });
   const displayId = String(display.id);
-  const src = sources.find(s => s.display_id === displayId) || sources[0];
-  if (!src) return { ok: false, error: 'no-source' };
+  const src = sources.find((s) => s.display_id === displayId) || sources[0];
+  if (!src) return { ok: false, error: "no-source" };
   const screenshot = src.thumbnail;
 
   return new Promise((resolve) => {
     captureOverlay = new BrowserWindow({
-      x: display.bounds.x, y: display.bounds.y, width, height,
-      frame: false, transparent: true, alwaysOnTop: true,
-      skipTaskbar: true, resizable: false, movable: false, fullscreen: true,
+      x: display.bounds.x,
+      y: display.bounds.y,
+      width,
+      height,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      movable: false,
+      fullscreen: true,
       webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        contextIsolation: true, nodeIntegration: false
-      }
+        preload: path.join(__dirname, "preload.js"),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
     });
-    loadRenderer(captureOverlay, 'capture.html');
-    captureOverlay.once('ready-to-show', () => {
-      captureOverlay.webContents.send('capture-init', { width, height, scale });
+    loadRenderer(captureOverlay, "capture.html");
+    captureOverlay.once("ready-to-show", () => {
+      captureOverlay.webContents.send("capture-init", { width, height, scale });
     });
 
-    ipcMain.once('capture-done', (_e, rect) => {
-      if (captureOverlay && !captureOverlay.isDestroyed()) captureOverlay.close();
+    ipcMain.once("capture-done", (_e, rect) => {
+      if (captureOverlay && !captureOverlay.isDestroyed())
+        captureOverlay.close();
       captureOverlay = null;
       if (!rect) return resolve({ ok: false, cancelled: true });
       const cropped = screenshot.crop({
-        x: Math.round(rect.x * scale), y: Math.round(rect.y * scale),
-        width: Math.round(rect.w * scale), height: Math.round(rect.h * scale)
+        x: Math.round(rect.x * scale),
+        y: Math.round(rect.y * scale),
+        width: Math.round(rect.w * scale),
+        height: Math.round(rect.h * scale),
       });
       clipboard.writeImage(cropped);
       resolve({ ok: true, dataURL: cropped.toDataURL() });
     });
 
-    captureOverlay.on('closed', () => { captureOverlay = null; });
+    captureOverlay.on("closed", () => {
+      captureOverlay = null;
+    });
   });
 });
 
 // ---------- TCP: Interviewer server ----------
-ipcMain.handle('start-server', (_e, port) => {
+ipcMain.handle("start-server", (_e, port) => {
   return new Promise((resolve, reject) => {
-    if (tcpServer) { resolve({ ok: true, port }); return; }
+    if (tcpServer) {
+      resolve({ ok: true, port });
+      return;
+    }
     tcpServer = net.createServer((socket) => {
-      socket.setEncoding('utf8');
-      let buffer = '';
-      socket.on('data', (chunk) => {
+      socket.setEncoding("utf8");
+      let buffer = "";
+      socket.on("data", (chunk) => {
         buffer += chunk;
         let idx;
-        while ((idx = buffer.indexOf('\n')) >= 0) {
+        while ((idx = buffer.indexOf("\n")) >= 0) {
           const line = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 1);
           if (!line) continue;
-          try { mainWindow.webContents.send('chat-message', JSON.parse(line)); }
-          catch {}
+          try {
+            mainWindow.webContents.send("chat-message", JSON.parse(line));
+          } catch {}
         }
       });
-      socket.on('error', () => {});
-      mainWindow.webContents.send('peer-status', { connected: true });
-      socket.on('close', () => mainWindow.webContents.send('peer-status', { connected: false }));
+      socket.on("error", () => {});
+      mainWindow.webContents.send("peer-status", { connected: true });
+      socket.on("close", () =>
+        mainWindow.webContents.send("peer-status", { connected: false }),
+      );
       tcpServer._socket = socket;
     });
-    tcpServer.on('error', (err) => reject(err.message));
+    tcpServer.on("error", (err) => reject(err.message));
     tcpServer.listen(port, () => resolve({ ok: true, port }));
   });
 });
 
 // ---------- TCP: Support client ----------
-ipcMain.handle('connect', (_e, { host, port }) => {
+ipcMain.handle("connect", (_e, { host, port }) => {
   return new Promise((resolve, reject) => {
-    if (tcpClient) { tcpClient.destroy(); tcpClient = null; }
+    if (tcpClient) {
+      tcpClient.destroy();
+      tcpClient = null;
+    }
     tcpClient = net.createConnection({ host, port }, () => {
-      mainWindow.webContents.send('peer-status', { connected: true });
+      mainWindow.webContents.send("peer-status", { connected: true });
       resolve({ ok: true });
     });
-    tcpClient.setEncoding('utf8');
-    let buffer = '';
-    tcpClient.on('data', (chunk) => {
+    tcpClient.setEncoding("utf8");
+    let buffer = "";
+    tcpClient.on("data", (chunk) => {
       buffer += chunk;
       let idx;
-      while ((idx = buffer.indexOf('\n')) >= 0) {
+      while ((idx = buffer.indexOf("\n")) >= 0) {
         const line = buffer.slice(0, idx);
         buffer = buffer.slice(idx + 1);
         if (!line) continue;
-        try { mainWindow.webContents.send('chat-message', JSON.parse(line)); }
-        catch {}
+        try {
+          mainWindow.webContents.send("chat-message", JSON.parse(line));
+        } catch {}
       }
     });
-    tcpClient.on('error', (err) => {
-      mainWindow.webContents.send('peer-status', { connected: false, error: err.message });
+    tcpClient.on("error", (err) => {
+      mainWindow.webContents.send("peer-status", {
+        connected: false,
+        error: err.message,
+      });
       reject(err.message);
     });
-    tcpClient.on('close', () => mainWindow.webContents.send('peer-status', { connected: false }));
+    tcpClient.on("close", () =>
+      mainWindow.webContents.send("peer-status", { connected: false }),
+    );
   });
 });
 
-ipcMain.handle('disconnect', () => {
-  if (tcpClient) { tcpClient.destroy(); tcpClient = null; }
+ipcMain.handle("disconnect", () => {
+  if (tcpClient) {
+    tcpClient.destroy();
+    tcpClient = null;
+  }
   return { ok: true };
 });
 
-ipcMain.handle('send-message', (_e, payload) => {
-  const line = JSON.stringify(payload) + '\n';
-  if (tcpClient && !tcpClient.destroyed) { tcpClient.write(line); return { ok: true }; }
-  if (tcpServer && tcpServer._socket && !tcpServer._socket.destroyed) {
-    tcpServer._socket.write(line); return { ok: true };
+ipcMain.handle("send-message", (_e, payload) => {
+  const line = JSON.stringify(payload) + "\n";
+  if (tcpClient && !tcpClient.destroyed) {
+    tcpClient.write(line);
+    return { ok: true };
   }
-  return { ok: false, error: 'Not connected' };
+  if (tcpServer && tcpServer._socket && !tcpServer._socket.destroyed) {
+    tcpServer._socket.write(line);
+    return { ok: true };
+  }
+  return { ok: false, error: "Not connected" };
 });
