@@ -31,13 +31,8 @@ function SizeRow({ label, size, onSet }) {
 
   const toggle = async () => {
     if (!adjusting) {
-      // Enable resize and set window to current preset size
+      window.api.winSetSize(size.w, size.h);
       window.api.winSetResizable(true);
-      window.api.winCtrl('maximize'); // unmaximize if needed
-      // Give a moment then set the preset size so user sees it
-      setTimeout(() => {
-        // Window is now resizable, user can drag to desired size
-      }, 100);
       setAdjusting(true);
     } else {
       // Read current size and save

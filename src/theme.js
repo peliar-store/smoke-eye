@@ -23,6 +23,7 @@ const theme = createTheme({
         '::-webkit-scrollbar-thumb': { background: '#52525b', borderRadius: 3 },
         '::-webkit-scrollbar-thumb:hover': { background: '#71717a' },
         '*': { scrollbarWidth: 'thin', scrollbarColor: '#52525b transparent' },
+        '*, *::before, *::after': { cursor: 'default !important' },
         mark: { background: '#fbbf24', color: '#000', padding: '0 2px', borderRadius: 2 },
         webview: { display: 'flex', flex: 1 }
       }

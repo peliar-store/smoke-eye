@@ -15,7 +15,6 @@ export default function Panel({ title, mode, onSelect, children }) {
         flex: 1,
         display: 'flex', flexDirection: 'column',
         minHeight: 0, minWidth: 0, overflow: 'hidden',
-        cursor: isMain ? 'default' : 'pointer',
         ...(!isMain && { '&:hover': { borderColor: 'primary.main' } })
       }}
     >
