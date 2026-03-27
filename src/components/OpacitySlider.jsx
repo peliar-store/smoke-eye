@@ -2,30 +2,48 @@ import { useEffect, useRef, useState } from 'react';
 import { Box, Tooltip } from '@mui/material';
 import OpacityIcon from '@mui/icons-material/Opacity';
 
+const OPACITY_STEP = 0.1;
+
 const STORAGE_KEY = 'opacity';
+const MIN_OPACITY = 0.1;
 
 function loadOpacity() {
   try {
     const v = parseFloat(localStorage.getItem(STORAGE_KEY));
-    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+    return Number.isFinite(v) ? Math.max(MIN_OPACITY, Math.min(1, v)) : 1;
   } catch { return 1; }
 }
 
 export default function OpacitySlider() {
   const [value, setValue] = useState(loadOpacity);
   const trackRef = useRef(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   useEffect(() => {
     window.api.winOpacity(value);
   }, []);
 
+  const applyOpacity = (v) => {
+    const clamped = Math.max(MIN_OPACITY, Math.min(1, v));
+    setValue(clamped);
+    localStorage.setItem(STORAGE_KEY, clamped);
+    window.api.winOpacity(clamped);
+  };
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail === 'opacityUp') applyOpacity(valueRef.current + OPACITY_STEP);
+      else if (e.detail === 'opacityDown') applyOpacity(valueRef.current - OPACITY_STEP);
+    };
+    window.addEventListener('opacity-hotkey', handler);
+    return () => window.removeEventListener('opacity-hotkey', handler);
+  }, []);
+
   const onMove = (e) => {
     const rect = trackRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const v = ratio;
-    setValue(v);
-    localStorage.setItem(STORAGE_KEY, v);
-    window.api.winOpacity(v);
+    const ratio = (e.clientX - rect.left) / rect.width;
+    applyOpacity(ratio);
   };
 
   return (

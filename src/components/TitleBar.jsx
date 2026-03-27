@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Tooltip, Typography } from "@mui/material";
 import MinimizeIcon from "@mui/icons-material/Minimize";
 import CropSquareIcon from "@mui/icons-material/CropSquare";
 import FilterNoneIcon from "@mui/icons-material/FilterNone";
@@ -13,6 +13,7 @@ const noDrag = { WebkitAppRegion: "no-drag" };
 export default function TitleBar({ title = "Interview Support", children }) {
   const [maximized, setMaximized] = useState(false);
   const [shielded, setShielded] = useState(true);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   useEffect(() => {
     window.api.winIsMaximized().then(setMaximized);
@@ -80,10 +81,25 @@ export default function TitleBar({ title = "Interview Support", children }) {
             <CropSquareIcon sx={{ fontSize: 15 }} />
           )}
         </WinBtn>
-        <WinBtn onClick={() => window.api.winCtrl("close")} danger>
+        <WinBtn onClick={() => setConfirmClose(true)} danger>
           <CloseIcon sx={{ fontSize: 17 }} />
         </WinBtn>
       </Box>
+
+      <Dialog
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        PaperProps={{ sx: { WebkitAppRegion: 'no-drag' } }}
+      >
+        <DialogTitle>Exit application?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Are you sure you want to close the program?</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmClose(false)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={() => window.api.winCtrl("close")}>Exit</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

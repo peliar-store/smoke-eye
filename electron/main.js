@@ -49,6 +49,8 @@ const defaultSettings = {
     stickyPrev: "CommandOrControl+Alt+[",
     stickyNext: "CommandOrControl+Alt+]",
     captureArea: "CommandOrControl+Alt+C",
+    opacityUp: "CommandOrControl+Alt+Equal",
+    opacityDown: "CommandOrControl+Alt+-",
   },
   sizes: { mobile: { w: 420, h: 780 }, tablet: { w: 900, h: 700 } },
   webpages: ["https://example.com", "https://developer.mozilla.org"],
@@ -93,6 +95,7 @@ function createWindow() {
     minHeight: 500,
     frame: false,
     resizable: false,
+    skipTaskbar: true,
     backgroundColor: "#121212",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -286,6 +289,12 @@ const hotkeyActions = {
   captureArea: () =>
     mainWindow &&
     mainWindow.webContents.send("hotkey-action", { action: "captureArea" }),
+  opacityUp: () =>
+    mainWindow &&
+    mainWindow.webContents.send("hotkey-action", { action: "opacityUp" }),
+  opacityDown: () =>
+    mainWindow &&
+    mainWindow.webContents.send("hotkey-action", { action: "opacityDown" }),
 };
 
 function registerHotkeys() {

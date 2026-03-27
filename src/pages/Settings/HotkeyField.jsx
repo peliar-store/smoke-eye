@@ -12,6 +12,10 @@ function normalize(k) {
   return k;
 }
 
+function displayHotkey(v) {
+  return v.replace(/CommandOrControl/g, 'Ctrl');
+}
+
 export default function HotkeyField({ label, value, onChange }) {
   const [recording, setRecording] = useState(false);
 
@@ -32,7 +36,7 @@ export default function HotkeyField({ label, value, onChange }) {
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
       <Typography variant="body2">{label}</Typography>
       <OutlinedInput
-        value={value}
+        value={displayHotkey(value)}
         readOnly
         onFocus={() => { setRecording(true); window.api.suspendHotkeys(); }}
         onBlur={() => { setRecording(false); window.api.resumeHotkeys(); }}
