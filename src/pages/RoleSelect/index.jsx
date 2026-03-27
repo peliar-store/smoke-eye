@@ -18,13 +18,26 @@ export default function RoleSelect() {
         </IconButton>
       </TitleBar>
 
-      <Box sx={{ flex: 1, overflow: 'auto', py: 3 }}>
-        <Container maxWidth="sm">
-          <Typography variant="h5" align="center" fontWeight={300} gutterBottom>
+      <Box sx={{ flex: 1, overflow: 'auto', py: { xs: 2, sm: 3 } }}>
+        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 } }}>
+          <Typography
+            variant="h5"
+            align="center"
+            fontWeight={300}
+            sx={{ mb: { xs: 1.5, sm: 2 } }}
+          >
             Interview Support
           </Typography>
 
-          <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth" sx={{ mb: 3 }}>
+          <Tabs
+            value={tab}
+            onChange={(_, v) => setTab(v)}
+            centered
+            sx={{
+              mb: { xs: 2, sm: 3 },
+              '& .MuiTab-root': { minWidth: { xs: 120, sm: 160 } }
+            }}
+          >
             <Tab label="Interviewer" />
             <Tab label="Support" />
           </Tabs>

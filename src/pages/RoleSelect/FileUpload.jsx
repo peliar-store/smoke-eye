@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Button, Chip, IconButton, List, ListItem, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Button, Chip, IconButton, List, ListItem, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { useApp } from '../../context/AppContext';
@@ -25,30 +25,27 @@ export default function FileUpload() {
   const remove = (idx) => setUploadedFiles(f => f.filter((_, i) => i !== idx));
 
   return (
-    <Box>
-      <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-        Upload Files
-      </Typography>
+    <Stack spacing={1.5}>
       <Stack direction="row" spacing={1}>
         <TextField
           select
           value={type}
           onChange={e => setType(e.target.value)}
-          sx={{ width: 140 }}
+          sx={{ minWidth: 110 }}
         >
           {Object.entries(FILE_TYPES).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
         </TextField>
         <Button variant="outlined" startIcon={<AddIcon />} onClick={addFiles} fullWidth>
-          Add File
+          Add
         </Button>
       </Stack>
 
-      {uploadedFiles.length > 0 && (
-        <List dense sx={{ maxHeight: 140, overflow: 'auto', mt: 1 }}>
+      {uploadedFiles.length > 0 ? (
+        <List dense disablePadding sx={{ maxHeight: 160, overflow: 'auto' }}>
           {uploadedFiles.map((f, i) => (
             <ListItem
               key={i}
-              sx={{ bgcolor: 'action.hover', borderRadius: 1, mb: 0.5 }}
+              sx={{ bgcolor: 'action.hover', borderRadius: 1, mb: 0.5, pr: 6 }}
               secondaryAction={
                 <IconButton edge="end" size="small" onClick={() => remove(i)}>
                   <DeleteIcon fontSize="small" />
@@ -60,7 +57,11 @@ export default function FileUpload() {
             </ListItem>
           ))}
         </List>
+      ) : (
+        <Typography variant="caption" color="text.disabled" align="center" sx={{ py: 1 }}>
+          No files added
+        </Typography>
       )}
-    </Box>
+    </Stack>
   );
 }
