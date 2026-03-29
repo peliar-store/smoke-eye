@@ -141,6 +141,8 @@ ipcMain.on("win-content-protection", (_e, on) => {
   if (!mainWindow) return;
   contentProtected = !!on;
   mainWindow.setContentProtection(contentProtected);
+  if (stickyWindow && !stickyWindow.isDestroyed())
+    stickyWindow.setContentProtection(contentProtected);
   mainWindow.webContents.send("protection-state", contentProtected);
 });
 
@@ -176,6 +178,7 @@ function createStickyWindow() {
     },
   });
   loadRenderer(stickyWindow, "sticky.html");
+  if (contentProtected) stickyWindow.setContentProtection(true);
   stickyWindow.on("closed", () => {
     stickyWindow = null;
   });
@@ -239,6 +242,8 @@ function toggleProtection() {
   if (!mainWindow) return;
   contentProtected = !contentProtected;
   mainWindow.setContentProtection(contentProtected);
+  if (stickyWindow && !stickyWindow.isDestroyed())
+    stickyWindow.setContentProtection(contentProtected);
   mainWindow.webContents.send("protection-state", contentProtected);
 }
 
