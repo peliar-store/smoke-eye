@@ -19,6 +19,7 @@ const DIST = path.join(__dirname, "..", "dist");
 
 let mainWindow;
 let stickyWindow = null;
+let currentStickyNoteId = null;
 let tcpServer = null;
 let tcpClient = null;
 
@@ -182,6 +183,7 @@ function createStickyWindow() {
 }
 
 function showSticky(note) {
+  currentStickyNoteId = note.id || null;
   const win = createStickyWindow();
   const send = () => win.webContents.send("sticky-data", note);
   if (win.webContents.isLoading())
@@ -189,6 +191,18 @@ function showSticky(note) {
   else send();
   win.show();
   win.focus();
+}
+
+function updateStickyContent(note) {
+  if (
+    !stickyWindow ||
+    stickyWindow.isDestroyed() ||
+    !stickyWindow.isVisible()
+  )
+    return;
+  if (note.id && note.id === currentStickyNoteId) {
+    stickyWindow.webContents.send("sticky-data", note);
+  }
 }
 
 function toggleStickyVisibility() {
@@ -389,13 +403,19 @@ ipcMain.handle("show-sticky", (_e, note) => {
   return { ok: true };
 });
 ipcMain.handle("hide-sticky", () => {
+  currentStickyNoteId = null;
   if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
   return { ok: true };
 });
 ipcMain.on("close-sticky", () => {
+  currentStickyNoteId = null;
   if (stickyWindow && !stickyWindow.isDestroyed()) stickyWindow.hide();
 });
 ipcMain.on("sticky-nav", (_e, dir) => navSticky(dir));
+ipcMain.handle("update-sticky-content", (_e, note) => {
+  updateStickyContent(note);
+  return { ok: true };
+});
 
 // ---------- Screen capture IPC ----------
 let captureOverlay = null;

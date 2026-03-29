@@ -96,6 +96,7 @@ export function AppProvider({ children }) {
           if (idx >= 0) { const c = [...n]; c[idx] = msg.note; return c; }
           return [...n, msg.note];
         });
+        window.api.updateStickyContent(msg.note);
       } else if (msg.type === 'sticky-delete' && r === 'interviewer') {
         setStickyNotes(n => n.filter(x => x.id !== msg.id));
       } else if (msg.type === 'file-list' && r === 'support') {

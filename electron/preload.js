@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
   // Sticky
   showSticky: (note) => ipcRenderer.invoke('show-sticky', note),
   hideSticky: () => ipcRenderer.invoke('hide-sticky'),
+  updateStickyContent: (note) => ipcRenderer.invoke('update-sticky-content', note),
   closeSticky: () => ipcRenderer.send('close-sticky'),
   stickyNav: (dir) => ipcRenderer.send('sticky-nav', dir),
 
